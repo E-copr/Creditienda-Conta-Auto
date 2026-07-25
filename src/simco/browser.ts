@@ -13,6 +13,7 @@ export const TEXT = {
   passwordLabel: "Contraseña",
   loginButton: "INGRESAR",
   totpInputPlaceholder: "Ingresar código",
+  totpHeading: "Segundo factor de autenticación",
   totpSubmitButton: "Ingresar",
   proveedoresCard: "Proveedores",
   sidebarCargaDeFacturas: "Carga de facturas",
@@ -89,9 +90,12 @@ export async function loginToSimco(page: Page, screenshotDir?: string): Promise<
     await page.waitForTimeout(2000);
     await shot("2b-despues-de-click-ingresar");
 
-    // Paso 2: segundo factor (TOTP).
-    const totpInput = page.getByPlaceholder(TEXT.totpInputPlaceholder);
-    await totpInput.waitFor({ state: "visible", timeout: 15_000 });
+    // Paso 2: segundo factor (TOTP). El campo no siempre expone un
+    // placeholder HTML real, asi que se ubica por el titulo de la pantalla
+    // y se toma el unico input de texto visible ahi.
+    await page.getByText(TEXT.totpHeading, { exact: false }).waitFor({ state: "visible", timeout: 15_000 });
+    const totpInput = page.locator('input:visible').first();
+    await totpInput.waitFor({ state: "visible", timeout: 5_000 });
     const code = generateTotpCode(config.simco.totpSecret);
     await totpInput.fill(code);
     await shot("3-totp-lleno");
