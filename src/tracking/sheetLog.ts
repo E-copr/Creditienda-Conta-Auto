@@ -1,11 +1,15 @@
-import { google } from "googleapis";
 import { config } from "../config.js";
 import type { TipoDocumento } from "../facturaCom/client.js";
+import { getAccessToken } from "./googleAuth.js";
 
 /**
  * Bitacora y mapeo de ordenes en un Google Sheet compartido con el equipo.
  * Cualquier colaborador con acceso al Sheet puede ver el estado de cada
  * factura sin tocar codigo; el robot solo lee/escribe filas.
+ *
+ * Usa la API REST de Google Sheets directamente (fetch + JWT propio en
+ * googleAuth.ts) en vez de la libreria `googleapis`, que pesaba ~112MB en
+ * disco solo para esto.
  *
  * Requiere una cuenta de servicio de Google Cloud con la Sheets API
  * habilitada y el Sheet compartido (permiso Editor) con el correo de esa
@@ -23,45 +27,56 @@ export interface BitacoraRow {
   fechaSubida?: string;
 }
 
-async function getSheetsClient() {
-  const auth = new google.auth.GoogleAuth({
-    keyFile: config.sheets.serviceAccountJsonPath,
-    scopes: ["https://www.googleapis.com/auth/spreadsheets"],
+const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
+
+async function sheetsGet(spreadsheetId: string, range: string): Promise<string[][]> {
+  const token = await getAccessToken();
+  const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Google Sheets GET ${range} -> ${res.status}: ${body}`);
+  }
+  const data = (await res.json()) as { values?: string[][] };
+  return data.values ?? [];
+}
+
+async function sheetsAppend(spreadsheetId: string, range: string, values: unknown[][]): Promise<void> {
+  const token = await getAccessToken();
+  const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}:append?valueInputOption=USER_ENTERED`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ values }),
   });
-  return google.sheets({ version: "v4", auth });
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`Google Sheets APPEND ${range} -> ${res.status}: ${body}`);
+  }
 }
 
 /** UUIDs que ya estan registrados en la bitacora (para no reprocesarlos). */
 export async function getExistingUuids(): Promise<Set<string>> {
-  const sheets = await getSheetsClient();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: config.sheets.sheetId,
-    range: `${config.sheets.tabBitacora}!A2:A`,
-  });
-  const rows = res.data.values ?? [];
+  const rows = await sheetsGet(config.sheets.sheetId, `${config.sheets.tabBitacora}!A2:A`);
   return new Set(rows.map((r) => r[0]).filter(Boolean));
 }
 
 export async function appendBitacoraRows(rows: BitacoraRow[]): Promise<void> {
   if (rows.length === 0) return;
-  const sheets = await getSheetsClient();
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: config.sheets.sheetId,
-    range: `${config.sheets.tabBitacora}!A:H`,
-    valueInputOption: "USER_ENTERED",
-    requestBody: {
-      values: rows.map((r) => [
-        r.uuid,
-        r.tipoDocumento,
-        r.numeroOrden ?? "",
-        r.fechaTimbrado,
-        r.estatus,
-        r.codigoError ?? "",
-        r.detalleError ?? "",
-        r.fechaSubida ?? "",
-      ]),
-    },
-  });
+  await sheetsAppend(
+    config.sheets.sheetId,
+    `${config.sheets.tabBitacora}!A:H`,
+    rows.map((r) => [
+      r.uuid,
+      r.tipoDocumento,
+      r.numeroOrden ?? "",
+      r.fechaTimbrado,
+      r.estatus,
+      r.codigoError ?? "",
+      r.detalleError ?? "",
+      r.fechaSubida ?? "",
+    ]),
+  );
 }
 
 /**
@@ -78,12 +93,7 @@ export async function appendBitacoraRows(rows: BitacoraRow[]): Promise<void> {
  * filas con error de generacion de factura).
  */
 export async function getOrderNumberMap(): Promise<Map<string, string>> {
-  const sheets = await getSheetsClient();
-  const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: config.sheets.sourceSheetId,
-    range: `${config.sheets.sourceSheetTab}!A1:Z`,
-  });
-  const [headerRow, ...rows] = res.data.values ?? [];
+  const [headerRow, ...rows] = await sheetsGet(config.sheets.sourceSheetId, `${config.sheets.sourceSheetTab}!A1:Z`);
   if (!headerRow) return new Map();
 
   const uuidIdx = headerRow.indexOf(config.sheets.sourceUuidHeader);
