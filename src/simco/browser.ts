@@ -108,11 +108,14 @@ export async function loginToSimco(page: Page, screenshotDir?: string): Promise<
     await page.waitForTimeout(1000);
     await shot("5-proveedores-home");
 
-    // Paso 4: ir a "Carga de facturas" en el menu lateral. El nodo de texto
-    // a veces queda marcado como "no visible" por Playwright aunque si
-    // este en pantalla (ej. un span decorativo superpuesto del estado
-    // activo del menu) -> se fuerza el click para saltar esa validacion.
-    await page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true }).click({ force: true, timeout: 10_000 });
+    // Paso 4: ir a "Carga de facturas" en el menu lateral. El elemento
+    // queda fuera del viewport (el sidebar probablemente arranca
+    // colapsado en la sesion automatizada) -> se dispara el click nativo
+    // via JS en vez del click simulado de mouse de Playwright, para que
+    // el manejador de React se ejecute sin depender de que este visible.
+    const cargaFacturasLink = page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true });
+    await cargaFacturasLink.waitFor({ state: "attached", timeout: 10_000 });
+    await cargaFacturasLink.evaluate((el) => (el as HTMLElement).click());
     await page.waitForLoadState("networkidle");
     await shot("6-carga-de-facturas");
   } catch (err) {
