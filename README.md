@@ -33,6 +33,9 @@ Ver [`docs/SETUP.md`](docs/SETUP.md) — incluye cómo obtener la llave TOTP
 de la cuenta de servicio, configurar el Google Sheet compartido, Slack, y
 desplegar en Railway con un cron job para que corra sola.
 
+Para correrlo directo en 1-2 computadoras sin hosting (el arranque actual),
+ver [`docs/SETUP_LOCAL_MAC.md`](docs/SETUP_LOCAL_MAC.md).
+
 ## Desarrollo local
 
 ```bash
