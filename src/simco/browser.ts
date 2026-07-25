@@ -73,6 +73,7 @@ export async function openSimcoSessionForInspection(
 
 export async function loginToSimco(page: Page, screenshotDir?: string): Promise<void> {
   const shot = async (name: string) => {
+    console.log(`[simco-login] ${name}`);
     if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/${name}.png` }).catch(() => {});
   };
 

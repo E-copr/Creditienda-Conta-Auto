@@ -119,10 +119,40 @@ binario de Chromium ya instalado.
 
 ## 5. Desplegar en Railway
 
-1. Crea un proyecto nuevo en Railway y conéctalo a este repositorio
-   (rama principal desplegada, o la rama que definan como estable).
-2. Railway detecta el `Dockerfile` automáticamente.
-3. Agrega las variables de entorno de la sección 2.
+1. Crea un proyecto nuevo en Railway → **Deploy from GitHub repo** → elige
+   `E-copr/Creditienda-Conta-Auto` → rama `claude/factura-simco-automation-js1i4r`
+   (o la que definan como estable más adelante).
+2. Railway detecta el `Dockerfile` automáticamente — no hay que instalar
+   nada en tu computadora, todo corre dentro del contenedor en Railway.
+3. Ve a **Variables** y agrega, una por una, todas las de la sección 2 y
+   3 de esta guía (`FACTURACOM_API_KEY`, `SIMCO_USERNAME`, `SIMCO_PASSWORD`,
+   `SIMCO_TOTP_SECRET`, `GOOGLE_SHEET_ID`, `SOURCE_SHEET_TAB`, etc.).
+
+### 5.1 Primero: correr SOLO la prueba de login (recomendado)
+
+Antes de dejarlo en automático, valida el login sin arriesgar ninguna
+subida real:
+
+1. En el servicio de Railway, ve a **Settings → Deploy → Custom Start
+   Command** y ponlo temporalmente en:
+   ```
+   npm run test:login-simco
+   ```
+2. Dispara un deploy ("Deploy" / "Redeploy").
+3. Abre la pestaña **Logs/Deployments** del servicio — vas a ver líneas
+   como `[simco-login] 1-login-page`, `[simco-login] 2-credenciales-llenas`,
+   etc. En qué línea se detiene o truena te dice exactamente qué paso
+   falló (usuario/contraseña, el código TOTP, o el nombre de un botón/menú
+   que ya no coincide).
+4. Una vez que veas los 6 pasos completos sin error en los logs, regresa a
+   **Custom Start Command** y bórralo (para que vuelva al default del
+   `Dockerfile`: `npm run upload:facturas`).
+
+Con esto confirmas todo (credenciales, TOTP, selectores) sin instalar nada
+en tu máquina y sin tocar el flujo real de subida.
+
+### 5.2 Programar la corrida automática
+
 4. Configura un **Cron Job** (Railway → tu servicio → Settings → Cron
    Schedule) con la frecuencia deseada, por ejemplo cada 2 días a las 8am:
    `0 8 */2 * *`.
