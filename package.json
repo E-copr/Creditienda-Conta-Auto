@@ -12,6 +12,7 @@
     "upload:facturas": "node dist/jobs/uploadFacturas.js",
     "dev:upload:facturas": "tsx src/jobs/uploadFacturas.ts",
     "test:login-simco": "tsx src/jobs/testLoginSimco.ts",
+    "test:network-simco": "tsx src/jobs/testNetworkSimco.ts",
     "codegen:simco": "playwright codegen https://creditienda-proveedores.concredito.com.mx/login"
   },
   "dependencies": {
