@@ -1,0 +1,27 @@
+{
+  "name": "creditienda-conta-auto",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automatizacion de descarga de facturas (factura.com) y carga a SIMCO (portal de proveedores CrediTienda)",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "upload:facturas": "node dist/jobs/uploadFacturas.js",
+    "dev:upload:facturas": "tsx src/jobs/uploadFacturas.ts",
+    "codegen:simco": "playwright codegen https://creditienda-proveedores.concredito.com.mx/login"
+  },
+  "dependencies": {
+    "dotenv": "^16.4.5",
+    "googleapis": "^140.0.1",
+    "otplib": "^12.0.1",
+    "playwright": "^1.47.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.10",
+    "tsx": "^4.16.2",
+    "typescript": "^5.5.3"
+  }
+}
