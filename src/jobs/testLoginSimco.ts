@@ -1,6 +1,9 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
+import { assertRequiredEnv } from "../config.js";
 import { openSimcoSessionForInspection } from "../simco/browser.js";
+
+assertRequiredEnv(["SIMCO_USERNAME", "SIMCO_PASSWORD", "SIMCO_TOTP_SECRET"]);
 
 /**
  * Prueba de solo-lectura: hace login + navega hasta "Carga de facturas" y

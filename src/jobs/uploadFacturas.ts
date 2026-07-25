@@ -1,6 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { config } from "../config.js";
+import { assertRequiredEnv, config } from "../config.js";
 import { downloadPdf, downloadXml, listInvoices, type FacturaComInvoice } from "../facturaCom/client.js";
 import { describeSimcoError } from "../simco/errorCatalog.js";
 import { uploadFacturasConCsv, withSimcoSession, type FacturaFilePair } from "../simco/browser.js";
@@ -9,6 +9,16 @@ import { extractOrderNumberFromXml } from "../util/xmlOrder.js";
 import { writeAuxiliarCsv } from "../util/csv.js";
 import { parseSimcoErrorReport } from "../util/parseErrorReport.js";
 import { notifySlack } from "../notify/slack.js";
+
+assertRequiredEnv([
+  "FACTURACOM_API_KEY",
+  "FACTURACOM_SECRET_KEY",
+  "SIMCO_USERNAME",
+  "SIMCO_PASSWORD",
+  "SIMCO_TOTP_SECRET",
+  "GOOGLE_SHEET_ID",
+  "SOURCE_SHEET_TAB",
+]);
 
 /**
  * Job principal: factura.com -> descarga -> resuelve numero de orden ->
