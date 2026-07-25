@@ -72,17 +72,10 @@ Invoice UID, Monto, Error`).
    entorno correspondiente (`SOURCE_UUID_HEADER`, `SOURCE_ORDER_NUMBER_HEADER`,
    `SOURCE_STATUS_HEADER`), sin tocar código.
 
-**⚠️ Pendiente de confirmar — no lo adiviné:** el sheet tiene dos columnas
-que podrían ser el "Número de orden" que SIMCO espera: **`Order number`**
-(formato Shopify, ej. `CRT-1055`, `#1010`) y **`Shopify Order ID`**
-(numérico, ej. `5896714846288`). El ejemplo de SIMCO en sus instrucciones
-usa un número largo tipo `6250133881067`, que no calza exactamente con
-ninguna de las dos. Por default el job usa `Order number`, pero **hay que
-confirmar contra un caso real ya subido a mano a SIMCO** cuál de las dos
-columnas (o si es un tercer campo que no está en este sheet) es la que
-realmente coincide con el número de orden que reconoce SIMCO, antes de
-dejarlo corriendo en automático — un mal match aquí liga la factura a la
-orden equivocada.
+**Confirmado con el equipo:** la columna `Shopify Order ID` del sheet es la
+que corresponde al "Numero de orden" del CSV auxiliar de SIMCO (no
+`Order number`). Así quedó configurado por default
+(`SOURCE_ORDER_NUMBER_HEADER=Shopify Order ID`).
 
 **C. Cuenta de servicio de Google**
 

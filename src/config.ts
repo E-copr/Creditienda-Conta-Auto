@@ -33,10 +33,9 @@ export const config = {
     sourceSheetId: process.env.SOURCE_SHEET_ID ?? "1E-UEacAMnJOItUERFv9rvQdI6Laa30ZUzA-tQ23krms",
     sourceSheetTab: required("SOURCE_SHEET_TAB"),
     sourceUuidHeader: process.env.SOURCE_UUID_HEADER ?? "UUID",
-    // TODO(confirmar con el equipo): ¿"Order number" (formato Shopify, ej.
-    // CRT-1055 / #1010) o "Shopify Order ID" (numerico) es el campo que
-    // SIMCO espera como "Numero de orden"? No usar el default a ciegas.
-    sourceOrderNumberHeader: process.env.SOURCE_ORDER_NUMBER_HEADER ?? "Order number",
+    // Confirmado con el equipo: SIMCO espera el valor de "Shopify Order ID"
+    // (no "Order number") como Numero de orden en el CSV auxiliar.
+    sourceOrderNumberHeader: process.env.SOURCE_ORDER_NUMBER_HEADER ?? "Shopify Order ID",
     sourceStatusHeader: process.env.SOURCE_STATUS_HEADER ?? "Estado",
   },
   slack: {
