@@ -16,7 +16,6 @@ assertRequiredEnv([
   "SIMCO_USERNAME",
   "SIMCO_PASSWORD",
   "SIMCO_TOTP_SECRET",
-  "GOOGLE_SHEET_ID",
   "SOURCE_SHEET_TAB",
 ]);
 
@@ -81,6 +80,7 @@ async function main() {
     uuid: inv.uuid,
     tipoDocumento: inv.tipoDocumento,
     numeroOrden: null,
+    nombreDocumento: inv.folio || inv.uuid,
     fechaTimbrado: inv.fechaTimbrado,
     estatus: "SIN_ORDEN",
   }));
@@ -124,6 +124,7 @@ async function main() {
       uuid: l.invoice.uuid,
       tipoDocumento: l.invoice.tipoDocumento,
       numeroOrden: l.numeroOrden,
+      nombreDocumento: l.invoice.folio || l.invoice.uuid,
       fechaTimbrado: l.invoice.fechaTimbrado,
       estatus: error ? "ERROR" : "SUBIDA_OK",
       detalleError: error,

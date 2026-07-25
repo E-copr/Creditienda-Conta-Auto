@@ -30,7 +30,7 @@ export const config = {
   },
   sheets: {
     // Sheet propio para la bitacora de subidas a SIMCO (nuevo, creado para este proyecto).
-    sheetId: process.env.GOOGLE_SHEET_ID ?? "",
+    sheetId: process.env.GOOGLE_SHEET_ID ?? "1RT06W3OF25sj8KAUwoQAvVy9c2M24iEZ1vBltGEFRR4",
     serviceAccountJsonPath: process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH ?? "./google-service-account.json",
     tabBitacora: process.env.SHEET_TAB_BITACORA ?? "Bitacora SIMCO",
 

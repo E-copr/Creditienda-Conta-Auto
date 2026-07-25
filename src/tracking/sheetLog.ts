@@ -20,6 +20,7 @@ export interface BitacoraRow {
   uuid: string;
   tipoDocumento: TipoDocumento;
   numeroOrden: string | null;
+  nombreDocumento: string;
   fechaTimbrado: string;
   estatus: "SUBIDA_OK" | "ERROR" | "SIN_ORDEN" | "PENDIENTE";
   codigoError?: string;
@@ -55,26 +56,35 @@ async function sheetsAppend(spreadsheetId: string, range: string, values: unknow
   }
 }
 
-/** UUIDs que ya estan registrados en la bitacora (para no reprocesarlos). */
+/** UUIDs que ya estan registrados en la bitacora (para no reprocesarlos). Columna C. */
 export async function getExistingUuids(): Promise<Set<string>> {
-  const rows = await sheetsGet(config.sheets.sheetId, `${config.sheets.tabBitacora}!A2:A`);
+  const rows = await sheetsGet(config.sheets.sheetId, `${config.sheets.tabBitacora}!C2:C`);
   return new Set(rows.map((r) => r[0]).filter(Boolean));
 }
 
+/**
+ * Orden real de columnas en el Sheet de bitacora (confirmado con el
+ * equipo): Fecha de subida, Tipo Documento, UUID, Tipo Documento (columna
+ * repetida - ver nota en docs/SETUP.md seccion 3, pendiente de aclarar
+ * para que sirve exactamente esa segunda columna), Numero Orden, Nombre
+ * del documento, Fecha Timbrado, Estatus, Codigo Error, Detalle Error.
+ */
 export async function appendBitacoraRows(rows: BitacoraRow[]): Promise<void> {
   if (rows.length === 0) return;
   await sheetsAppend(
     config.sheets.sheetId,
-    `${config.sheets.tabBitacora}!A:H`,
+    `${config.sheets.tabBitacora}!A:J`,
     rows.map((r) => [
-      r.uuid,
+      r.fechaSubida ?? "",
       r.tipoDocumento,
+      r.uuid,
+      "", // TODO: segunda columna "Tipo Documento" duplicada - confirmar que va aqui
       r.numeroOrden ?? "",
+      r.nombreDocumento,
       r.fechaTimbrado,
       r.estatus,
       r.codigoError ?? "",
       r.detalleError ?? "",
-      r.fechaSubida ?? "",
     ]),
   );
 }

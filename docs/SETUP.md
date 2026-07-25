@@ -42,14 +42,26 @@ Copia `.env.example` como referencia. En Railway, estas se configuran en
 
 Se usan **dos** Sheets distintos:
 
-**A. Bitácora nueva (por crear), solo de este proyecto**
+**A. Bitácora (ya creada)**
 
-1. Crea un Sheet nuevo, por ejemplo "Creditienda — Bitácora SIMCO".
-2. Crea la pestaña **`Bitacora SIMCO`** con encabezados en la fila 1:
-   `UUID | Tipo Documento | Numero Orden | Fecha Timbrado | Estatus | Codigo Error | Detalle Error | Fecha Subida`
-3. Compártela como **Editor** con el correo de la cuenta de servicio (ver
+Sheet: "Creditienda — Bitácora Cargas SIMCO Claude"
+(`GOOGLE_SHEET_ID=1RT06W3OF25sj8KAUwoQAvVy9c2M24iEZ1vBltGEFRR4`, ya es el
+default en `.env.example`).
+
+Columnas reales, en este orden (A→J):
+`Fecha de subida | Tipo Documento | UUID | Tipo Documento | Numero Orden | Nombre del documento | Fecha Timbrado | Estatus | Codigo Error | Detalle Error`
+
+> ⚠️ Pendiente de aclarar: la columna "Tipo Documento" aparece dos veces
+> (posición B y D). El código por ahora escribe el tipo de documento en la
+> columna B y deja la D vacía — avisen si la segunda debía ser otra cosa
+> (ej. canal, o un duplicado a eliminar) para ajustar.
+
+Pasos:
+1. Confirma el **nombre literal de la pestaña** dentro del Sheet (por
+   default Google Sheets la crea como "Hoja 1") y ponlo en
+   `SHEET_TAB_BITACORA`.
+2. Compártela como **Editor** con el correo de la cuenta de servicio (ver
    punto C) y también con tus colaboradores.
-4. Ese ID va en `GOOGLE_SHEET_ID`.
 
 **B. Sheet fuente (ya existe, lo llena el Make.com actual)**
 
@@ -77,14 +89,18 @@ que corresponde al "Numero de orden" del CSV auxiliar de SIMCO (no
 `Order number`). Así quedó configurado por default
 (`SOURCE_ORDER_NUMBER_HEADER=Shopify Order ID`).
 
-**C. Cuenta de servicio de Google**
+**C. Cuenta de servicio de Google (ya creada)**
 
-Crea una cuenta de servicio en Google Cloud Console con la **Google Sheets
-API** habilitada y genera una llave JSON. Se usa para leer el sheet fuente
-(B) y escribir en la bitácora (A). Súbela como variable de entorno según
-el hosting elegido (Railway permite montar archivos; en Vercel normalmente
-se pega el JSON completo en una variable y se ajusta el código para leerlo
-de ahí en vez de un archivo — avísame si confirman Vercel y lo ajusto).
+Corriendo en local (ver `docs/SETUP_LOCAL_MAC.md`): descarga el JSON de la
+llave desde Google Cloud Console y guárdalo como `google-service-account.json`
+en la raíz del repo — es el path que ya espera `GOOGLE_SERVICE_ACCOUNT_JSON_PATH`
+por default. No hace falta nada más (esto reemplaza la nota vieja sobre
+subirlo como variable de entorno en Railway/Vercel, que solo aplica si
+migran a hosting en la nube más adelante).
+
+No olvides compartir **ambos** Sheets (A y B) con el correo de esa cuenta
+de servicio (termina en `...iam.gserviceaccount.com`), o el job no podrá
+leer/escribir aunque el JSON esté bien puesto.
 
 Si no encuentra número de orden para una factura, el job **no la sube** —
 la marca como `SIN_ORDEN` en la bitácora y la reporta en Slack, para que
