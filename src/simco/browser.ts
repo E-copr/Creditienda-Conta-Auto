@@ -77,34 +77,42 @@ export async function loginToSimco(page: Page, screenshotDir?: string): Promise<
     if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/${name}.png` }).catch(() => {});
   };
 
-  await page.goto(config.simco.loginUrl, { waitUntil: "domcontentloaded" });
-  await shot("1-login-page");
+  try {
+    await page.goto(config.simco.loginUrl, { waitUntil: "domcontentloaded" });
+    await shot("1-login-page");
 
-  // Paso 1: usuario y contrasena.
-  await page.getByLabel(TEXT.emailLabel).fill(config.simco.username);
-  await page.getByLabel(TEXT.passwordLabel).fill(config.simco.password);
-  await shot("2-credenciales-llenas");
-  await page.getByRole("button", { name: TEXT.loginButton }).click();
+    // Paso 1: usuario y contrasena.
+    await page.getByLabel(TEXT.emailLabel).fill(config.simco.username);
+    await page.getByLabel(TEXT.passwordLabel).fill(config.simco.password);
+    await shot("2-credenciales-llenas");
+    await page.getByRole("button", { name: TEXT.loginButton }).click();
+    await page.waitForTimeout(2000);
+    await shot("2b-despues-de-click-ingresar");
 
-  // Paso 2: segundo factor (TOTP).
-  const totpInput = page.getByPlaceholder(TEXT.totpInputPlaceholder);
-  await totpInput.waitFor({ state: "visible", timeout: 15_000 });
-  const code = generateTotpCode(config.simco.totpSecret);
-  await totpInput.fill(code);
-  await shot("3-totp-lleno");
-  await page.getByRole("button", { name: TEXT.totpSubmitButton }).click();
-  await page.waitForTimeout(2000);
-  await shot("4-despues-totp");
+    // Paso 2: segundo factor (TOTP).
+    const totpInput = page.getByPlaceholder(TEXT.totpInputPlaceholder);
+    await totpInput.waitFor({ state: "visible", timeout: 15_000 });
+    const code = generateTotpCode(config.simco.totpSecret);
+    await totpInput.fill(code);
+    await shot("3-totp-lleno");
+    await page.getByRole("button", { name: TEXT.totpSubmitButton }).click();
+    await page.waitForTimeout(2000);
+    await shot("4-despues-totp");
 
-  // Paso 3: seleccion de modulo.
-  await page.getByText(TEXT.proveedoresCard, { exact: true }).click();
-  await page.waitForTimeout(1000);
-  await shot("5-proveedores-home");
+    // Paso 3: seleccion de modulo.
+    await page.getByText(TEXT.proveedoresCard, { exact: true }).click();
+    await page.waitForTimeout(1000);
+    await shot("5-proveedores-home");
 
-  // Paso 4: ir a "Carga de facturas" en el menu lateral.
-  await page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true }).click();
-  await page.waitForLoadState("networkidle");
-  await shot("6-carga-de-facturas");
+    // Paso 4: ir a "Carga de facturas" en el menu lateral.
+    await page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true }).click();
+    await page.waitForLoadState("networkidle");
+    await shot("6-carga-de-facturas");
+  } catch (err) {
+    console.error(`[simco-login] texto visible en la pagina al fallar: ${(await page.innerText("body").catch(() => "(no se pudo leer)")).slice(0, 500)}`);
+    await shot("error-state");
+    throw err;
+  }
 }
 
 export interface FacturaFilePair {
