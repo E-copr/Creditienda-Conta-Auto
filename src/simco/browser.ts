@@ -8,7 +8,7 @@ import { generateTotpCode } from "./totp.js";
  * haya que tocar este objeto (o correr `npm run codegen:simco` para
  * regenerar los selectores) en vez de reescribir la logica del flujo.
  */
-const TEXT = {
+export const TEXT = {
   emailLabel: "Correo",
   passwordLabel: "Contraseña",
   loginButton: "INGRESAR",
@@ -28,10 +28,23 @@ export interface SimcoUploadResult {
   reporteErroresPath?: string;
 }
 
+function launchOptions() {
+  return {
+    headless: config.simco.headless,
+    // Permite apuntar a un Chromium ya instalado (util en entornos donde no
+    // se puede descargar el binario de Playwright, p.ej. sandboxes con red
+    // restringida). En despliegue normal (Docker de Playwright) se deja sin
+    // definir y usa el navegador que trae la imagen.
+    ...(config.simco.chromiumExecutablePath
+      ? { executablePath: config.simco.chromiumExecutablePath }
+      : {}),
+  };
+}
+
 export async function withSimcoSession<T>(
   fn: (page: Page) => Promise<T>,
 ): Promise<T> {
-  const browser: Browser = await chromium.launch({ headless: config.simco.headless });
+  const browser: Browser = await chromium.launch(launchOptions());
   try {
     const context = await browser.newContext({ acceptDownloads: true });
     const page = await context.newPage();
@@ -42,12 +55,34 @@ export async function withSimcoSession<T>(
   }
 }
 
-async function loginToSimco(page: Page): Promise<void> {
+/**
+ * Abre un navegador, hace login + navega hasta "Carga de facturas" y lo
+ * deja abierto para que el llamador decida que hacer (usado por el script
+ * de prueba `npm run test:login-simco`, que no sube ningun archivo).
+ * Quien llama es responsable de cerrar el browser retornado.
+ */
+export async function openSimcoSessionForInspection(
+  screenshotDir?: string,
+): Promise<{ browser: Browser; page: Page }> {
+  const browser = await chromium.launch(launchOptions());
+  const context = await browser.newContext({ acceptDownloads: true });
+  const page = await context.newPage();
+  await loginToSimco(page, screenshotDir);
+  return { browser, page };
+}
+
+export async function loginToSimco(page: Page, screenshotDir?: string): Promise<void> {
+  const shot = async (name: string) => {
+    if (screenshotDir) await page.screenshot({ path: `${screenshotDir}/${name}.png` }).catch(() => {});
+  };
+
   await page.goto(config.simco.loginUrl, { waitUntil: "domcontentloaded" });
+  await shot("1-login-page");
 
   // Paso 1: usuario y contrasena.
   await page.getByLabel(TEXT.emailLabel).fill(config.simco.username);
   await page.getByLabel(TEXT.passwordLabel).fill(config.simco.password);
+  await shot("2-credenciales-llenas");
   await page.getByRole("button", { name: TEXT.loginButton }).click();
 
   // Paso 2: segundo factor (TOTP).
@@ -55,14 +90,20 @@ async function loginToSimco(page: Page): Promise<void> {
   await totpInput.waitFor({ state: "visible", timeout: 15_000 });
   const code = generateTotpCode(config.simco.totpSecret);
   await totpInput.fill(code);
+  await shot("3-totp-lleno");
   await page.getByRole("button", { name: TEXT.totpSubmitButton }).click();
+  await page.waitForTimeout(2000);
+  await shot("4-despues-totp");
 
   // Paso 3: seleccion de modulo.
   await page.getByText(TEXT.proveedoresCard, { exact: true }).click();
+  await page.waitForTimeout(1000);
+  await shot("5-proveedores-home");
 
   // Paso 4: ir a "Carga de facturas" en el menu lateral.
   await page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true }).click();
   await page.waitForLoadState("networkidle");
+  await shot("6-carga-de-facturas");
 }
 
 export interface FacturaFilePair {

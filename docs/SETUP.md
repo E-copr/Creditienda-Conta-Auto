@@ -92,6 +92,25 @@ alguien la complete a mano (igual que las "excepciones" del flujo de
 conciliación manual). Esto evita que el CSV auxiliar llegue con datos
 inventados.
 
+## 3.5 Probar el login antes de confiarle una subida real
+
+Antes de correr el job completo, valida que las credenciales + TOTP + los
+selectores de SIMCO funcionan, sin subir ni enviar ningún archivo:
+
+```bash
+npm run test:login-simco
+```
+
+Esto hace login, pasa el 2FA y navega hasta "Carga de facturas", guardando
+una captura de pantalla de cada paso en `./tmp/simco-login-test/` (esa
+carpeta está en `.gitignore`, revísalas localmente). Si algún paso falla,
+la captura del último estado te dice justo qué pantalla no coincidió con
+lo esperado — probablemente un texto o layout que cambió en SIMCO.
+
+En un entorno con acceso a internet restringido (no puede descargar el
+Chromium de Playwright) define `PLAYWRIGHT_CHROMIUM_PATH` apuntando a un
+binario de Chromium ya instalado.
+
 ## 4. Slack (notificaciones al equipo)
 
 1. Crea un Incoming Webhook en el canal donde quieras los avisos

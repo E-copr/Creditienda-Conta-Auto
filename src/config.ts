@@ -21,6 +21,7 @@ export const config = {
     password: required("SIMCO_PASSWORD"),
     totpSecret: required("SIMCO_TOTP_SECRET"),
     headless: (process.env.HEADLESS ?? "true") !== "false",
+    chromiumExecutablePath: process.env.PLAYWRIGHT_CHROMIUM_PATH || undefined,
   },
   sheets: {
     // Sheet propio para la bitacora de subidas a SIMCO (nuevo, creado para este proyecto).
