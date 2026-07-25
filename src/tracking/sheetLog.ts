@@ -65,23 +65,47 @@ export async function appendBitacoraRows(rows: BitacoraRow[]): Promise<void> {
 }
 
 /**
- * Lee el mapeo manual UUID -> Numero de orden (pestana "Mapeo Ordenes").
- * Se usa como respaldo cuando la factura no trae el numero de orden en el
- * XML (Addenda/Descripcion). Se espera que la automatizacion de generacion
- * de facturas (el Make.com existente) registre aqui cada UUID + orden al
- * momento de timbrar, o que un colaborador lo llene a mano.
+ * Lee el mapeo UUID -> Numero de orden directamente del Sheet que YA llena
+ * el Make.com existente al generar cada factura (no es un sheet nuevo).
+ *
+ * Busca las columnas por nombre de encabezado (no por posicion fija),
+ * porque el equipo avisó que los titulos/orden de columnas de ese sheet
+ * van a cambiar pronto — con esto un cambio de columnas no rompe el job,
+ * solo hay que ajustar los headers esperados en config (SOURCE_*_HEADER)
+ * si el nombre literal tambien cambia.
+ *
+ * Solo se consideran filas cuyo estatus empiece con "success" (se ignoran
+ * filas con error de generacion de factura).
  */
 export async function getOrderNumberMap(): Promise<Map<string, string>> {
   const sheets = await getSheetsClient();
   const res = await sheets.spreadsheets.values.get({
-    spreadsheetId: config.sheets.sheetId,
-    range: `${config.sheets.tabMapeoOrdenes}!A2:B`,
+    spreadsheetId: config.sheets.sourceSheetId,
+    range: `${config.sheets.sourceSheetTab}!A1:Z`,
   });
-  const rows = res.data.values ?? [];
+  const [headerRow, ...rows] = res.data.values ?? [];
+  if (!headerRow) return new Map();
+
+  const uuidIdx = headerRow.indexOf(config.sheets.sourceUuidHeader);
+  const orderIdx = headerRow.indexOf(config.sheets.sourceOrderNumberHeader);
+  const statusIdx = headerRow.indexOf(config.sheets.sourceStatusHeader);
+
+  if (uuidIdx === -1 || orderIdx === -1) {
+    throw new Error(
+      `No se encontraron las columnas "${config.sheets.sourceUuidHeader}" / "${config.sheets.sourceOrderNumberHeader}" ` +
+        `en la fila de encabezados del sheet fuente: [${headerRow.join(", ")}]. ` +
+        `Ajusta SOURCE_UUID_HEADER / SOURCE_ORDER_NUMBER_HEADER en las variables de entorno.`,
+    );
+  }
+
   const map = new Map<string, string>();
   for (const row of rows) {
-    const [uuid, numeroOrden] = row;
-    if (uuid && numeroOrden) map.set(uuid, String(numeroOrden));
+    const uuid = row[uuidIdx];
+    const numeroOrden = row[orderIdx];
+    const estatus = statusIdx >= 0 ? row[statusIdx] : "success";
+    if (uuid && numeroOrden && String(estatus ?? "").startsWith("success")) {
+      map.set(uuid, String(numeroOrden));
+    }
   }
   return map;
 }

@@ -23,10 +23,21 @@ export const config = {
     headless: (process.env.HEADLESS ?? "true") !== "false",
   },
   sheets: {
+    // Sheet propio para la bitacora de subidas a SIMCO (nuevo, creado para este proyecto).
     sheetId: required("GOOGLE_SHEET_ID"),
     serviceAccountJsonPath: process.env.GOOGLE_SERVICE_ACCOUNT_JSON_PATH ?? "./google-service-account.json",
     tabBitacora: process.env.SHEET_TAB_BITACORA ?? "Bitacora SIMCO",
-    tabMapeoOrdenes: process.env.SHEET_TAB_MAPEO_ORDENES ?? "Mapeo Ordenes",
+
+    // Sheet que YA llena el Make.com existente al generar cada factura
+    // (UUID <-> Order number). Es de solo lectura para este job.
+    sourceSheetId: process.env.SOURCE_SHEET_ID ?? "1E-UEacAMnJOItUERFv9rvQdI6Laa30ZUzA-tQ23krms",
+    sourceSheetTab: required("SOURCE_SHEET_TAB"),
+    sourceUuidHeader: process.env.SOURCE_UUID_HEADER ?? "UUID",
+    // TODO(confirmar con el equipo): ¿"Order number" (formato Shopify, ej.
+    // CRT-1055 / #1010) o "Shopify Order ID" (numerico) es el campo que
+    // SIMCO espera como "Numero de orden"? No usar el default a ciegas.
+    sourceOrderNumberHeader: process.env.SOURCE_ORDER_NUMBER_HEADER ?? "Order number",
+    sourceStatusHeader: process.env.SOURCE_STATUS_HEADER ?? "Estado",
   },
   slack: {
     webhookUrl: process.env.SLACK_WEBHOOK_URL ?? "",

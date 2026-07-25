@@ -38,51 +38,66 @@ Copia `.env.example` como referencia. En Railway, estas se configuran en
   disco — ver sección 3)
 - `SLACK_WEBHOOK_URL`
 
-## 3. Google Sheet (bitácora + mapeo de órdenes, visible para el equipo)
+## 3. Google Sheets: bitácora nueva + sheet fuente existente
+
+Se usan **dos** Sheets distintos:
+
+**A. Bitácora nueva (por crear), solo de este proyecto**
 
 1. Crea un Sheet nuevo, por ejemplo "Creditienda — Bitácora SIMCO".
-2. Crea dos pestañas:
-   - **`Bitacora SIMCO`** con encabezados en la fila 1:
-     `UUID | Tipo Documento | Numero Orden | Fecha Timbrado | Estatus | Codigo Error | Detalle Error | Fecha Subida`
-   - **`Mapeo Ordenes`** con encabezados:
-     `UUID factura | Numero de orden`
-3. Crea una cuenta de servicio en Google Cloud Console (proyecto nuevo o
-   existente) con la **Google Sheets API** habilitada, y genera una llave
-   JSON.
-4. Comparte el Sheet (botón "Compartir") con el correo de esa cuenta de
-   servicio (`...@...iam.gserviceaccount.com`) como **Editor**.
-5. Sube el JSON de la cuenta de servicio como variable de entorno en
-   Railway (Railway permite montar "Files"/volumes, o puedes pegar el JSON
-   completo en una variable `GOOGLE_SERVICE_ACCOUNT_JSON` y ajustar
-   `src/tracking/sheetLog.ts` para leerlo desde ahí en vez de un archivo —
-   dímelo si prefieres esta variante y la implemento).
-6. Comparte el Sheet también con tus colaboradores (Editor o Lector, según
-   si necesitan corregir el mapeo de órdenes a mano).
+2. Crea la pestaña **`Bitacora SIMCO`** con encabezados en la fila 1:
+   `UUID | Tipo Documento | Numero Orden | Fecha Timbrado | Estatus | Codigo Error | Detalle Error | Fecha Subida`
+3. Compártela como **Editor** con el correo de la cuenta de servicio (ver
+   punto C) y también con tus colaboradores.
+4. Ese ID va en `GOOGLE_SHEET_ID`.
 
-Este Sheet es la fuente de verdad que tú y tus colaboradores pueden revisar
-sin tocar código: qué se subió, qué falló y por qué.
+**B. Sheet fuente (ya existe, lo llena el Make.com actual)**
 
-### Sobre el "Numero de orden"
+El job lee de ahí el `UUID -> Numero de orden` — **no** hay que crear nada
+nuevo, es el mismo sheet donde Make ya registra cada factura generada
+(columnas actuales: `Fecha, Shopify Order ID, Order number, Estado, UUID,
+Invoice UID, Monto, Error`).
 
-El robot intenta resolverlo en este orden:
-1. Si factura.com ya guarda el número de orden en algún campo propio de la
-   factura (`ordenRelacionada` en `src/facturaCom/client.ts` — hay que
-   confirmar si tu cuenta lo soporta).
-2. Si el XML trae el patrón `Descripcion="...concepto/NUMERO_ORDEN"` (el
-   mismo formato que usa la opción "Addenda o descripción en XML" de
-   SIMCO).
-3. Si ninguna de las anteriores aplica, busca el UUID en la pestaña
-   `Mapeo Ordenes` del Sheet.
+1. Comparte ese Sheet como **Lector** (Viewer) con el correo de la cuenta
+   de servicio (punto C) — no necesita permiso de edición, el job solo lee.
+2. En las variables de entorno define:
+   - `SOURCE_SHEET_ID` (ya trae como default el ID que compartiste:
+     `1E-UEacAMnJOItUERFv9rvQdI6Laa30ZUzA-tQ23krms`)
+   - `SOURCE_SHEET_TAB`: el **nombre literal de la pestaña** (no el `gid`
+     de la URL — la Sheets API direcciona por nombre de pestaña, no por
+     gid; ábrela y copia el texto de la pestaña tal cual).
+3. Como nos avisaste que los títulos de columna van a cambiar pronto, el
+   job los busca **por nombre de encabezado**, no por posición. Si cambian
+   el texto exacto de una columna, solo hay que actualizar la variable de
+   entorno correspondiente (`SOURCE_UUID_HEADER`, `SOURCE_ORDER_NUMBER_HEADER`,
+   `SOURCE_STATUS_HEADER`), sin tocar código.
 
-Si no encuentra nada, **no sube esa factura** — la marca como `SIN_ORDEN`
-en la bitácora y la reporta en Slack, para que alguien la complete a mano
-(igual que las "excepciones" del flujo de conciliación manual). Esto evita
-que el CSV auxiliar llegue con datos inventados.
+**⚠️ Pendiente de confirmar — no lo adiviné:** el sheet tiene dos columnas
+que podrían ser el "Número de orden" que SIMCO espera: **`Order number`**
+(formato Shopify, ej. `CRT-1055`, `#1010`) y **`Shopify Order ID`**
+(numérico, ej. `5896714846288`). El ejemplo de SIMCO en sus instrucciones
+usa un número largo tipo `6250133881067`, que no calza exactamente con
+ninguna de las dos. Por default el job usa `Order number`, pero **hay que
+confirmar contra un caso real ya subido a mano a SIMCO** cuál de las dos
+columnas (o si es un tercer campo que no está en este sheet) es la que
+realmente coincide con el número de orden que reconoce SIMCO, antes de
+dejarlo corriendo en automático — un mal match aquí liga la factura a la
+orden equivocada.
 
-Lo ideal a mediano plazo: que el Make.com que ya genera las facturas
-escriba directamente en la pestaña `Mapeo Ordenes` (o en el XML) el número
-de orden al momento de timbrar — así este paso deja de depender de
-mapeo manual.
+**C. Cuenta de servicio de Google**
+
+Crea una cuenta de servicio en Google Cloud Console con la **Google Sheets
+API** habilitada y genera una llave JSON. Se usa para leer el sheet fuente
+(B) y escribir en la bitácora (A). Súbela como variable de entorno según
+el hosting elegido (Railway permite montar archivos; en Vercel normalmente
+se pega el JSON completo en una variable y se ajusta el código para leerlo
+de ahí en vez de un archivo — avísame si confirman Vercel y lo ajusto).
+
+Si no encuentra número de orden para una factura, el job **no la sube** —
+la marca como `SIN_ORDEN` en la bitácora y la reporta en Slack, para que
+alguien la complete a mano (igual que las "excepciones" del flujo de
+conciliación manual). Esto evita que el CSV auxiliar llegue con datos
+inventados.
 
 ## 4. Slack (notificaciones al equipo)
 
