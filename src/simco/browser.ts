@@ -108,8 +108,11 @@ export async function loginToSimco(page: Page, screenshotDir?: string): Promise<
     await page.waitForTimeout(1000);
     await shot("5-proveedores-home");
 
-    // Paso 4: ir a "Carga de facturas" en el menu lateral.
-    await page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true }).click();
+    // Paso 4: ir a "Carga de facturas" en el menu lateral. El nodo de texto
+    // a veces queda marcado como "no visible" por Playwright aunque si
+    // este en pantalla (ej. un span decorativo superpuesto del estado
+    // activo del menu) -> se fuerza el click para saltar esa validacion.
+    await page.getByText(TEXT.sidebarCargaDeFacturas, { exact: true }).click({ force: true, timeout: 10_000 });
     await page.waitForLoadState("networkidle");
     await shot("6-carga-de-facturas");
   } catch (err) {
