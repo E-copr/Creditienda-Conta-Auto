@@ -64,21 +64,18 @@ export async function getExistingUuids(): Promise<Set<string>> {
 
 /**
  * Orden real de columnas en el Sheet de bitacora (confirmado con el
- * equipo): Fecha de subida, Tipo Documento, UUID, Tipo Documento (columna
- * repetida - ver nota en docs/SETUP.md seccion 3, pendiente de aclarar
- * para que sirve exactamente esa segunda columna), Numero Orden, Nombre
+ * equipo): Fecha de subida, Tipo Documento, UUID, Numero Orden, Nombre
  * del documento, Fecha Timbrado, Estatus, Codigo Error, Detalle Error.
  */
 export async function appendBitacoraRows(rows: BitacoraRow[]): Promise<void> {
   if (rows.length === 0) return;
   await sheetsAppend(
     config.sheets.sheetId,
-    `${config.sheets.tabBitacora}!A:J`,
+    `${config.sheets.tabBitacora}!A:I`,
     rows.map((r) => [
       r.fechaSubida ?? "",
       r.tipoDocumento,
       r.uuid,
-      "", // TODO: segunda columna "Tipo Documento" duplicada - confirmar que va aqui
       r.numeroOrden ?? "",
       r.nombreDocumento,
       r.fechaTimbrado,
