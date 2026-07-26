@@ -14,6 +14,7 @@
     "test:login-simco": "tsx src/jobs/testLoginSimco.ts",
     "test:network-simco": "tsx src/jobs/testNetworkSimco.ts",
     "test:sheets": "tsx src/jobs/testSheets.ts",
+    "test:facturacom": "tsx src/jobs/testFacturaCom.ts",
     "codegen:simco": "playwright codegen https://creditienda-proveedores.concredito.com.mx/login"
   },
   "dependencies": {
