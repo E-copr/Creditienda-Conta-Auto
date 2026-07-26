@@ -64,34 +64,48 @@ async function apiGetBinary(path: string): Promise<Buffer> {
   return Buffer.from(arrayBuffer);
 }
 
-/** Lista CFDI timbrados entre dos fechas (inclusive) para un tipo de documento. */
+function mmddyyyy(d: Date): string {
+  return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+/**
+ * Lista CFDI timbrados entre dos fechas (inclusive), filtrando por tipo de
+ * documento en el cliente (no se confirmo un parametro de query para tipo,
+ * asi que se filtra sobre el campo TipoDeComprobante de cada resultado).
+ *
+ * Endpoint y formato de fecha (dateStart/dateEnd MM/DD/YYYY) confirmados
+ * contra la cuenta real. Requiere que la cuenta de factura.com tenga
+ * habilitado el endpoint de listado (mensaje de error visto: "necesitas
+ * adquirir un plan Empresa en el que esta incluido el plugin" - si sale
+ * ese error, es un tema de plan/plugin de la cuenta, no de este codigo).
+ */
 export async function listInvoices(
   tipo: TipoDocumento,
   dateFrom: Date,
   dateTo: Date,
 ): Promise<FacturaComInvoice[]> {
-  const from = dateFrom.toISOString().slice(0, 10);
-  const to = dateTo.toISOString().slice(0, 10);
   const tipoComprobante = TIPO_COMPROBANTE[tipo];
-
-  // TODO: confirma el nombre real de estos query params contra tus API docs.
-  const path = `/cfdi40?date_start=${from}&date_end=${to}&type=${tipoComprobante}`;
+  const path = `/cfdi40/list?dateStart=${mmddyyyy(dateFrom)}&dateEnd=${mmddyyyy(dateTo)}`;
 
   const raw = await apiGet<{ data: any[] }>(path);
-  return (raw.data ?? []).map((item) => ({
-    uuid: item.UUID ?? item.uuid,
-    folio: String(item.Folio ?? item.folio ?? ""),
-    tipoDocumento: tipo,
-    fechaTimbrado: item.CreationDate ?? item.fecha ?? new Date().toISOString(),
-    total: Number(item.Total ?? item.total ?? 0),
-    ordenRelacionada: item.OrdenRelacionada ?? undefined,
-  }));
+  return (raw.data ?? [])
+    .filter((item) => (item.TipoDeComprobante ?? item.tipoDeComprobante) === tipoComprobante)
+    .map((item) => ({
+      uuid: item.UUID ?? item.uuid,
+      folio: String(item.Folio ?? item.folio ?? ""),
+      tipoDocumento: tipo,
+      fechaTimbrado: item.FechaTimbrado ?? item.CreationDate ?? item.fecha ?? new Date().toISOString(),
+      total: Number(item.Total ?? item.total ?? 0),
+      ordenRelacionada: item.OrdenRelacionada ?? undefined,
+    }));
 }
 
+// TODO: confirmar contra la cuenta real una vez que el plan/plugin lo
+// permita (mismo patron que retenciones: /cfdi40/retenciones/{uid}/pdf).
 export async function downloadPdf(uuid: string): Promise<Buffer> {
-  return apiGetBinary(`/cfdi40/pdf/${uuid}`);
+  return apiGetBinary(`/cfdi40/${uuid}/pdf`);
 }
 
 export async function downloadXml(uuid: string): Promise<Buffer> {
-  return apiGetBinary(`/cfdi40/xml/${uuid}`);
+  return apiGetBinary(`/cfdi40/${uuid}/xml`);
 }
