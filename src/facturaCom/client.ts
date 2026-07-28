@@ -3,13 +3,18 @@ import { config } from "../config.js";
 /**
  * Cliente para la API v4 de factura.com.
  *
- * IMPORTANTE: los nombres de endpoint/parametros de abajo siguen el patron
- * publico documentado de la API v4 de factura.com (headers F-PLUGIN /
- * F-Api-Key / F-Secret-Key, recurso /cfdi40). Verifica cada endpoint contra
- * el panel de API de tu cuenta (Configuracion > API en factura.com) antes de
- * usarlo en produccion: si tu cuenta usa una version distinta (v3/v4) o
- * nombres de parametro distintos, ajusta BASE_PATHS aqui, no en el resto del
- * codigo.
+ * Endpoints de descarga (downloadPdf/downloadXml) confirmados letra por
+ * letra contra la documentacion oficial (factura.com/apidocs, seccion
+ * "Descargar CFDI"): host https://api.factura.com, rutas
+ * /v4/cfdi40/{cfdi_uid}/pdf y /v4/cfdi40/{cfdi_uid}/xml, headers F-PLUGIN /
+ * F-Api-Key / F-Secret-Key. El F-PLUGIN es un valor publico generico (viene
+ * igual en los ejemplos de su documentacion), no es especifico de la
+ * cuenta.
+ *
+ * Si estos endpoints regresan {"status":"error","message":"...plan
+ * Empresa..."} es un tema de permisos/plan de la cuenta en el servidor de
+ * factura.com, no de este codigo — confirmado contra la documentacion
+ * oficial letra por letra.
  */
 
 export type TipoDocumento = "factura" | "notaCredito" | "complementoPago";
@@ -100,8 +105,6 @@ export async function listInvoices(
     }));
 }
 
-// TODO: confirmar contra la cuenta real una vez que el plan/plugin lo
-// permita (mismo patron que retenciones: /cfdi40/retenciones/{uid}/pdf).
 export async function downloadPdf(uuid: string): Promise<Buffer> {
   return apiGetBinary(`/cfdi40/${uuid}/pdf`);
 }
