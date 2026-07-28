@@ -3,12 +3,12 @@ import { assertRequiredEnv, config } from "../config.js";
 assertRequiredEnv(["FACTURACOM_API_KEY", "FACTURACOM_SECRET_KEY"]);
 
 /**
- * Prueba de solo lectura: intenta descargar el PDF/XML de un UUID real
- * (tomado del sheet de Make) para confirmar si la descarga por UUID esta
- * disponible en el plan actual, independientemente de si el endpoint de
- * listado masivo (/cfdi40/list) esta bloqueado por plan/plugin.
+ * Prueba de solo lectura: intenta descargar el PDF/XML usando el "Invoice
+ * UID" corto de factura.com (columna "Invoice UID" del sheet de Make, NO
+ * la columna "UUID" larga/folio fiscal) — factura.com confirmo que el
+ * endpoint de descarga requiere el UID corto, no el UUID.
  */
-const UUID_DE_PRUEBA = process.argv[2] ?? "9463fc3f-f616-4b8f-90aa-3ee33da8181b";
+const UID_DE_PRUEBA = process.argv[2] ?? "6a3b053b2e88d";
 
 const headers = {
   "F-PLUGIN": config.facturaCom.pluginKey,
@@ -34,11 +34,9 @@ async function probar(nombre: string, url: string) {
 }
 
 async function main() {
-  console.log(`Probando descarga para UUID: ${UUID_DE_PRUEBA}`);
-  await probar("PDF (patron cfdi40/{uid}/pdf)", `https://api.factura.com/v4/cfdi40/${UUID_DE_PRUEBA}/pdf`);
-  await probar("XML (patron cfdi40/{uid}/xml)", `https://api.factura.com/v4/cfdi40/${UUID_DE_PRUEBA}/xml`);
-  await probar("PDF (patron cfdi40/pdf/{uid})", `https://api.factura.com/v4/cfdi40/pdf/${UUID_DE_PRUEBA}`);
-  await probar("XML (patron cfdi40/xml/{uid})", `https://api.factura.com/v4/cfdi40/xml/${UUID_DE_PRUEBA}`);
+  console.log(`Probando descarga para Invoice UID: ${UID_DE_PRUEBA}`);
+  await probar("PDF", `https://api.factura.com/v4/cfdi40/${UID_DE_PRUEBA}/pdf`);
+  await probar("XML", `https://api.factura.com/v4/cfdi40/${UID_DE_PRUEBA}/xml`);
 }
 
 main();
