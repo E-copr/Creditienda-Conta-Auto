@@ -39,10 +39,15 @@ export const config = {
     sourceSheetId: process.env.SOURCE_SHEET_ID ?? "1E-UEacAMnJOItUERFv9rvQdI6Laa30ZUzA-tQ23krms",
     sourceSheetTab: process.env.SOURCE_SHEET_TAB ?? "",
     sourceUuidHeader: process.env.SOURCE_UUID_HEADER ?? "UUID",
+    // "Invoice UID" (corto, ej. 6a3b053b2e88d) es el identificador que pide
+    // la API de factura.com para descargar PDF/XML - NO es el UUID/folio
+    // fiscal largo, son cosas distintas (confirmado con factura.com).
+    sourceInvoiceUidHeader: process.env.SOURCE_INVOICE_UID_HEADER ?? "Invoice UID",
     // Confirmado con el equipo: SIMCO espera el valor de "Shopify Order ID"
     // (no "Order number") como Numero de orden en el CSV auxiliar.
     sourceOrderNumberHeader: process.env.SOURCE_ORDER_NUMBER_HEADER ?? "Shopify Order ID",
     sourceStatusHeader: process.env.SOURCE_STATUS_HEADER ?? "Estado",
+    sourceFechaHeader: process.env.SOURCE_FECHA_HEADER ?? "Fecha",
   },
   slack: {
     webhookUrl: process.env.SLACK_WEBHOOK_URL ?? "",

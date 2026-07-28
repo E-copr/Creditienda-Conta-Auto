@@ -1,11 +1,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { assertRequiredEnv, config } from "../config.js";
-import { downloadPdf, downloadXml, listInvoices, type FacturaComInvoice } from "../facturaCom/client.js";
+import { downloadPdf, downloadXml } from "../facturaCom/client.js";
 import { describeSimcoError } from "../simco/errorCatalog.js";
 import { uploadFacturasConCsv, withSimcoSession, type FacturaFilePair } from "../simco/browser.js";
-import { appendBitacoraRows, getExistingUuids, getOrderNumberMap, type BitacoraRow } from "../tracking/sheetLog.js";
-import { extractOrderNumberFromXml } from "../util/xmlOrder.js";
+import {
+  appendBitacoraRows,
+  getExistingUuids,
+  getPendingSourceInvoices,
+  type BitacoraRow,
+  type SourceInvoiceRow,
+} from "../tracking/sheetLog.js";
 import { writeAuxiliarCsv } from "../util/csv.js";
 import { parseSimcoErrorReport } from "../util/parseErrorReport.js";
 import { notifySlack } from "../notify/slack.js";
@@ -20,26 +25,26 @@ assertRequiredEnv([
 ]);
 
 /**
- * Job principal: factura.com -> descarga -> resuelve numero de orden ->
- * sube a SIMCO -> registra bitacora -> notifica al equipo.
+ * Job principal: sheet de Make (fuente de facturas ya generadas) ->
+ * descarga PDF/XML de factura.com por Invoice UID -> sube a SIMCO ->
+ * registra bitacora -> notifica al equipo.
  *
  * Cubre por ahora solo "facturas" (Carga de facturas). Notas de credito y
  * complementos de pago usan otras pantallas de SIMCO (ver sidebar:
  * "Notas de credito" / "Cargar complementos de pago") que aun no se han
- * mapeado; se agregan como su propio job siguiendo este mismo patron en
- * cuanto se documente ese flujo (Fase 2, igual que en el blueprint
- * original de conciliacion).
+ * mapeado; se agregan como su propio job siguiendo este mismo patron mas
+ * adelante (Fase 2).
  */
 async function main() {
   const lookbackDays = config.job.defaultLookbackDays;
   const dateTo = new Date();
   const dateFrom = new Date(dateTo.getTime() - lookbackDays * 24 * 60 * 60 * 1000);
 
-  console.log(`Buscando facturas timbradas entre ${dateFrom.toISOString()} y ${dateTo.toISOString()}`);
-  const invoices = await listInvoices("factura", dateFrom, dateTo);
+  console.log(`Buscando facturas del sheet fuente entre ${dateFrom.toISOString()} y ${dateTo.toISOString()}`);
+  const candidatas = await getPendingSourceInvoices(dateFrom, dateTo);
 
   const yaRegistradas = await getExistingUuids();
-  const pendientes = invoices.filter((inv) => !yaRegistradas.has(inv.uuid));
+  const pendientes = candidatas.filter((inv) => !yaRegistradas.has(inv.uuid));
 
   if (pendientes.length === 0) {
     console.log("No hay facturas nuevas por procesar.");
@@ -47,59 +52,25 @@ async function main() {
     return;
   }
 
-  const orderMap = await getOrderNumberMap();
   const downloadDir = path.resolve(config.job.downloadDir, `run-${Date.now()}`);
   await mkdir(downloadDir, { recursive: true });
 
-  const listas: { invoice: FacturaComInvoice; files: FacturaFilePair; numeroOrden: string }[] = [];
-  const sinOrden: FacturaComInvoice[] = [];
+  const listas: { invoice: SourceInvoiceRow; files: FacturaFilePair }[] = [];
 
   for (const inv of pendientes) {
-    const pdfBuffer = await downloadPdf(inv.uuid);
-    const xmlBuffer = await downloadXml(inv.uuid);
+    const pdfBuffer = await downloadPdf(inv.invoiceUid);
+    const xmlBuffer = await downloadXml(inv.invoiceUid);
 
-    const pdfPath = path.join(downloadDir, `${inv.folio || inv.uuid}.pdf`);
-    const xmlPath = path.join(downloadDir, `${inv.folio || inv.uuid}.xml`);
+    const pdfPath = path.join(downloadDir, `${inv.invoiceUid}.pdf`);
+    const xmlPath = path.join(downloadDir, `${inv.invoiceUid}.xml`);
     await writeFile(pdfPath, pdfBuffer);
     await writeFile(xmlPath, xmlBuffer);
 
-    const numeroOrden =
-      inv.ordenRelacionada ??
-      extractOrderNumberFromXml(xmlBuffer.toString("utf-8")) ??
-      orderMap.get(inv.uuid);
-
-    if (!numeroOrden) {
-      sinOrden.push(inv);
-      continue;
-    }
-
-    listas.push({ invoice: inv, files: { pdfPath, xmlPath }, numeroOrden });
-  }
-
-  const bitacoraRows: BitacoraRow[] = sinOrden.map((inv) => ({
-    uuid: inv.uuid,
-    tipoDocumento: inv.tipoDocumento,
-    numeroOrden: null,
-    nombreDocumento: inv.folio || inv.uuid,
-    fechaTimbrado: inv.fechaTimbrado,
-    estatus: "SIN_ORDEN",
-  }));
-
-  if (listas.length === 0) {
-    console.log("Ninguna factura pendiente tiene numero de orden resoluble; nada que subir a SIMCO.");
-    await appendBitacoraRows(bitacoraRows);
-    await notifySlack({
-      totalProcesadas: pendientes.length,
-      exitosas: 0,
-      conError: 0,
-      sinNumeroOrden: sinOrden.length,
-      detalleErrores: sinOrden.map((i) => `Sin numero de orden: ${i.uuid} (folio ${i.folio})`),
-    });
-    return;
+    listas.push({ invoice: inv, files: { pdfPath, xmlPath } });
   }
 
   const csvPath = await writeAuxiliarCsv(
-    listas.map((l) => ({ uuid: l.invoice.uuid, numeroOrden: l.numeroOrden })),
+    listas.map((l) => ({ uuid: l.invoice.uuid, numeroOrden: l.invoice.numeroOrden })),
     downloadDir,
   );
 
@@ -118,19 +89,19 @@ async function main() {
     }
   }
 
-  for (const l of listas) {
+  const bitacoraRows: BitacoraRow[] = listas.map((l) => {
     const error = erroresPorUuid.get(l.invoice.uuid);
-    bitacoraRows.push({
+    return {
       uuid: l.invoice.uuid,
-      tipoDocumento: l.invoice.tipoDocumento,
-      numeroOrden: l.numeroOrden,
-      nombreDocumento: l.invoice.folio || l.invoice.uuid,
-      fechaTimbrado: l.invoice.fechaTimbrado,
+      tipoDocumento: "factura",
+      numeroOrden: l.invoice.numeroOrden,
+      nombreDocumento: l.invoice.numeroOrden,
+      fechaTimbrado: l.invoice.fecha,
       estatus: error ? "ERROR" : "SUBIDA_OK",
       detalleError: error,
       fechaSubida: new Date().toISOString(),
-    });
-  }
+    };
+  });
 
   await appendBitacoraRows(bitacoraRows);
 
@@ -138,19 +109,16 @@ async function main() {
     totalProcesadas: pendientes.length,
     exitosas: resultado.exitosas,
     conError: resultado.conError,
-    sinNumeroOrden: sinOrden.length,
-    detalleErrores: [
-      ...sinOrden.map((i) => `Sin numero de orden: ${i.uuid} (folio ${i.folio})`),
-      ...detalleErrores,
-    ],
+    sinNumeroOrden: 0,
+    detalleErrores,
   });
 
   console.log(
-    `Listo. Enviadas: ${resultado.totalEnviadas} · Exitosas: ${resultado.exitosas} · Con error: ${resultado.conError} · Sin orden: ${sinOrden.length}`,
+    `Listo. Enviadas: ${resultado.totalEnviadas} · Exitosas: ${resultado.exitosas} · Con error: ${resultado.conError}`,
   );
 
   if (resultado.conError > 0) {
-    process.exitCode = 1; // marca el run como fallido para alertas de Railway
+    process.exitCode = 1;
   }
 }
 

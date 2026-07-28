@@ -1,5 +1,5 @@
 import { config } from "../config.js";
-import { getExistingUuids, getOrderNumberMap } from "../tracking/sheetLog.js";
+import { getExistingUuids, getPendingSourceInvoices } from "../tracking/sheetLog.js";
 
 /**
  * Prueba de solo lectura: valida la conexion a ambos Sheets (credenciales
@@ -11,16 +11,14 @@ async function main() {
   const existentes = await getExistingUuids();
   console.log(`OK. UUIDs ya registrados en la bitacora: ${existentes.size}`);
 
-  console.log(
-    `\nSheet fuente (Make): ${config.sheets.sourceSheetId} / pestana "${config.sheets.sourceSheetTab}"`,
-  );
-  const orderMap = await getOrderNumberMap();
-  console.log(`OK. Filas con "success" y numero de orden resoluble: ${orderMap.size}`);
-  console.log("Primeros 5 ejemplos (UUID -> Numero de orden):");
-  let i = 0;
-  for (const [uuid, numeroOrden] of orderMap) {
-    if (i++ >= 5) break;
-    console.log(`  ${uuid} -> ${numeroOrden}`);
+  console.log(`\nSheet fuente (Make): ${config.sheets.sourceSheetId} / pestana "${config.sheets.sourceSheetTab}"`);
+  const dateTo = new Date();
+  const dateFrom = new Date(dateTo.getTime() - config.job.defaultLookbackDays * 24 * 60 * 60 * 1000);
+  const pendientes = await getPendingSourceInvoices(dateFrom, dateTo);
+  console.log(`OK. Facturas "success" en los ultimos ${config.job.defaultLookbackDays} dias: ${pendientes.length}`);
+  console.log("Primeros 5 ejemplos (UUID / Invoice UID / Numero de orden):");
+  for (const inv of pendientes.slice(0, 5)) {
+    console.log(`  ${inv.uuid} / ${inv.invoiceUid} / ${inv.numeroOrden}`);
   }
 }
 

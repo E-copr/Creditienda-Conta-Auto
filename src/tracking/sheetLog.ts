@@ -86,43 +86,60 @@ export async function appendBitacoraRows(rows: BitacoraRow[]): Promise<void> {
   );
 }
 
+export interface SourceInvoiceRow {
+  uuid: string;
+  invoiceUid: string;
+  numeroOrden: string;
+  fecha: string;
+}
+
 /**
- * Lee el mapeo UUID -> Numero de orden directamente del Sheet que YA llena
- * el Make.com existente al generar cada factura (no es un sheet nuevo).
+ * Lee las facturas ya generadas directamente del Sheet que YA llena el
+ * Make.com existente (no es un sheet nuevo) — esta es la fuente de verdad
+ * de "que facturas existen", en vez de llamar al endpoint de listado de
+ * factura.com (bloqueado por plan de cuenta y de todos modos innecesario:
+ * Make ya captura UUID + Invoice UID + Numero de orden al timbrar).
  *
  * Busca las columnas por nombre de encabezado (no por posicion fija),
  * porque el equipo avisó que los titulos/orden de columnas de ese sheet
  * van a cambiar pronto — con esto un cambio de columnas no rompe el job,
- * solo hay que ajustar los headers esperados en config (SOURCE_*_HEADER)
- * si el nombre literal tambien cambia.
+ * solo hay que ajustar los headers esperados en config (SOURCE_*_HEADER).
  *
- * Solo se consideran filas cuyo estatus empiece con "success" (se ignoran
- * filas con error de generacion de factura).
+ * Solo regresa filas cuyo estatus empiece con "success" y cuya fecha caiga
+ * dentro de [dateFrom, dateTo].
  */
-export async function getOrderNumberMap(): Promise<Map<string, string>> {
+export async function getPendingSourceInvoices(dateFrom: Date, dateTo: Date): Promise<SourceInvoiceRow[]> {
   const [headerRow, ...rows] = await sheetsGet(config.sheets.sourceSheetId, `${config.sheets.sourceSheetTab}!A1:Z`);
-  if (!headerRow) return new Map();
+  if (!headerRow) return [];
 
   const uuidIdx = headerRow.indexOf(config.sheets.sourceUuidHeader);
+  const invoiceUidIdx = headerRow.indexOf(config.sheets.sourceInvoiceUidHeader);
   const orderIdx = headerRow.indexOf(config.sheets.sourceOrderNumberHeader);
   const statusIdx = headerRow.indexOf(config.sheets.sourceStatusHeader);
+  const fechaIdx = headerRow.indexOf(config.sheets.sourceFechaHeader);
 
-  if (uuidIdx === -1 || orderIdx === -1) {
+  if (uuidIdx === -1 || invoiceUidIdx === -1 || orderIdx === -1 || fechaIdx === -1) {
     throw new Error(
-      `No se encontraron las columnas "${config.sheets.sourceUuidHeader}" / "${config.sheets.sourceOrderNumberHeader}" ` +
-        `en la fila de encabezados del sheet fuente: [${headerRow.join(", ")}]. ` +
-        `Ajusta SOURCE_UUID_HEADER / SOURCE_ORDER_NUMBER_HEADER en las variables de entorno.`,
+      `No se encontraron las columnas esperadas en el sheet fuente: ` +
+        `["${config.sheets.sourceUuidHeader}", "${config.sheets.sourceInvoiceUidHeader}", "${config.sheets.sourceOrderNumberHeader}", "${config.sheets.sourceFechaHeader}"]. ` +
+        `Encabezados reales: [${headerRow.join(", ")}]. Ajusta las variables SOURCE_*_HEADER.`,
     );
   }
 
-  const map = new Map<string, string>();
+  const result: SourceInvoiceRow[] = [];
   for (const row of rows) {
     const uuid = row[uuidIdx];
+    const invoiceUid = row[invoiceUidIdx];
     const numeroOrden = row[orderIdx];
     const estatus = statusIdx >= 0 ? row[statusIdx] : "success";
-    if (uuid && numeroOrden && String(estatus ?? "").startsWith("success")) {
-      map.set(uuid, String(numeroOrden));
-    }
+    const fecha = row[fechaIdx];
+    if (!uuid || !invoiceUid || !numeroOrden || !fecha) continue;
+    if (!String(estatus ?? "").startsWith("success")) continue;
+
+    const fechaDate = new Date(fecha);
+    if (fechaDate < dateFrom || fechaDate > dateTo) continue;
+
+    result.push({ uuid, invoiceUid, numeroOrden: String(numeroOrden), fecha });
   }
-  return map;
+  return result;
 }
