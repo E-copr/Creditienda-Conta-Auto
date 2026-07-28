@@ -55,5 +55,9 @@ export const config = {
   job: {
     defaultLookbackDays: Number(process.env.DEFAULT_LOOKBACK_DAYS ?? "3"),
     downloadDir: process.env.DOWNLOAD_DIR ?? "./tmp/facturas",
+    // Limite de seguridad para pruebas controladas (ej. MAX_INVOICES_PER_RUN=1
+    // para validar la subida real a SIMCO con una sola factura antes de
+    // soltarlo con un lote completo). 0 = sin limite.
+    maxInvoicesPerRun: Number(process.env.MAX_INVOICES_PER_RUN ?? "0"),
   },
 };

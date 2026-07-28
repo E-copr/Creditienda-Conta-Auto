@@ -44,7 +44,14 @@ async function main() {
   const candidatas = await getPendingSourceInvoices(dateFrom, dateTo);
 
   const yaRegistradas = await getExistingUuids();
-  const pendientes = candidatas.filter((inv) => !yaRegistradas.has(inv.uuid));
+  let pendientes = candidatas.filter((inv) => !yaRegistradas.has(inv.uuid));
+
+  if (config.job.maxInvoicesPerRun > 0 && pendientes.length > config.job.maxInvoicesPerRun) {
+    console.log(
+      `Limitando esta corrida a ${config.job.maxInvoicesPerRun} de ${pendientes.length} facturas pendientes (MAX_INVOICES_PER_RUN).`,
+    );
+    pendientes = pendientes.slice(0, config.job.maxInvoicesPerRun);
+  }
 
   if (pendientes.length === 0) {
     console.log("No hay facturas nuevas por procesar.");
