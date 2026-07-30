@@ -93,6 +93,24 @@ export interface SourceInvoiceRow {
   fecha: string;
 }
 
+/** Mapeo UUID -> Invoice UID de TODAS las filas del sheet fuente (sin filtrar por estatus/fecha/tipo). */
+export async function getAllUuidToInvoiceUidMap(): Promise<Map<string, string>> {
+  const [headerRow, ...rows] = await sheetsGet(config.sheets.sourceSheetId, `${config.sheets.sourceSheetTab}!A1:Z`);
+  if (!headerRow) return new Map();
+
+  const uuidIdx = headerRow.indexOf(config.sheets.sourceUuidHeader);
+  const invoiceUidIdx = headerRow.indexOf(config.sheets.sourceInvoiceUidHeader);
+  if (uuidIdx === -1 || invoiceUidIdx === -1) return new Map();
+
+  const map = new Map<string, string>();
+  for (const row of rows) {
+    const uuid = row[uuidIdx];
+    const invoiceUid = row[invoiceUidIdx];
+    if (uuid && invoiceUid) map.set(uuid, invoiceUid);
+  }
+  return map;
+}
+
 /**
  * Lee las facturas ya generadas directamente del Sheet que YA llena el
  * Make.com existente (no es un sheet nuevo) — esta es la fuente de verdad

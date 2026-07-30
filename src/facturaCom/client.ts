@@ -53,3 +53,38 @@ export async function downloadPdf(invoiceUid: string): Promise<Buffer> {
 export async function downloadXml(invoiceUid: string): Promise<Buffer> {
   return apiGetBinary(`/cfdi40/${invoiceUid}/xml`);
 }
+
+export interface CancelacionResultado {
+  ok: boolean;
+  mensaje: string;
+}
+
+/**
+ * Cancela un CFDI 4.0. Endpoint confirmado letra por letra contra la
+ * documentacion oficial (factura.com/apidocs/cancelar-cfdi-40.html):
+ * POST /v4/cfdi40/{invoiceUid}/cancel con body {motivo, folioSustituto?}.
+ *
+ * motivo: "01" (con errores, requiere folioSustituto con el UID/UUID del
+ * CFDI que sustituye al cancelado), "02" (con errores, sin relacion, no
+ * requiere folioSustituto), "03" (operacion no realizada), "04" (operacion
+ * nominativa de factura global).
+ */
+export async function cancelInvoice(
+  invoiceUid: string,
+  motivo: "01" | "02" | "03" | "04",
+  folioSustituto?: string,
+): Promise<CancelacionResultado> {
+  const body: Record<string, string> = { motivo };
+  if (folioSustituto) body.folioSustituto = folioSustituto;
+
+  const res = await fetch(`${config.facturaCom.baseUrl}/cfdi40/${invoiceUid}/cancel`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  const data = (await res.json().catch(() => ({}))) as { response?: string; message?: string };
+  return {
+    ok: res.ok && data.response === "success",
+    mensaje: data.message ?? `HTTP ${res.status}`,
+  };
+}

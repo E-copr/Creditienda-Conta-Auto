@@ -17,6 +17,7 @@
     "test:facturacom": "tsx src/jobs/testFacturaCom.ts",
     "test:facturacom-download": "tsx src/jobs/testFacturaComDownload.ts",
     "debug:simco-inspect": "tsx src/jobs/debugSimcoInspect.ts",
+    "cancel:facturas": "tsx src/jobs/cancelFacturas.ts",
     "codegen:simco": "playwright codegen https://creditienda-proveedores.concredito.com.mx/login"
   },
   "dependencies": {
