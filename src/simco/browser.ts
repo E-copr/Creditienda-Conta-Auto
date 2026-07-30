@@ -17,7 +17,6 @@ export const TEXT = {
   totpSubmitButton: "Ingresar",
   proveedoresCard: "Proveedores",
   sidebarCargaDeFacturas: "Carga de facturas",
-  archivoAuxiliarRadio: "Archivo auxiliar (.csv)",
   enviarFacturasButton: "Enviar facturas",
   reporteErroresButton: "Reporte de archivos con error",
 };
@@ -143,16 +142,17 @@ export async function uploadFacturasConCsv(
 ): Promise<SimcoUploadResult> {
   const allFilePaths = files.flatMap((f) => [f.pdfPath, f.xmlPath]);
 
-  // El dropzone principal de PDF/XML es el primer <input type="file"> de la pagina.
-  const mainFileInput = page.locator('input[type="file"]').first();
-  await mainFileInput.setInputFiles(allFilePaths);
+  // Selectores grabados con npm run debug:simco-inspect (Playwright
+  // Inspector) contra la pantalla real de "Carga de facturas" - no son
+  // suposiciones, son la interaccion real grabada.
+  await page.locator(".No-Files-Preview").click();
+  await page.locator(".Dropzone > div").setInputFiles(allFilePaths);
 
-  // Selecciona la opcion "Archivo auxiliar (.csv)".
-  await page.getByText(TEXT.archivoAuxiliarRadio, { exact: false }).click();
+  // Radio "Archivo auxiliar (.csv)" es el segundo radio de la pantalla (indice 1).
+  await page.getByRole("radio").nth(1).check();
 
-  // Tras seleccionar la opcion aparece un segundo dropzone para el CSV.
-  const csvFileInput = page.locator('input[type="file"]').last();
-  await csvFileInput.setInputFiles(csvPath);
+  await page.getByText("Carga o arrastra el archivo .").click();
+  await page.locator(".mc-dropzone-three > div").setInputFiles(csvPath);
 
   const enviarButton = page.getByRole("button", { name: TEXT.enviarFacturasButton });
   await enviarButton.waitFor({ state: "visible" });
