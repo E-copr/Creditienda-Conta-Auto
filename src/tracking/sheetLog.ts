@@ -105,8 +105,11 @@ export interface SourceInvoiceRow {
  * van a cambiar pronto — con esto un cambio de columnas no rompe el job,
  * solo hay que ajustar los headers esperados en config (SOURCE_*_HEADER).
  *
- * Solo regresa filas cuyo estatus empiece con "success" y cuya fecha caiga
- * dentro de [dateFrom, dateTo].
+ * Solo regresa filas cuyo estatus empiece con "success", cuyo "Tipo de
+ * documento" sea exactamente "Factura" (el sheet tambien registra
+ * Complementos de Pago y filas de depuracion en la misma pestana - se
+ * excluyen aqui) y cuya fecha caiga dentro de [dateFrom, dateTo].
+ * Se regresa ordenado por fecha ascendente (las mas antiguas primero).
  */
 export async function getPendingSourceInvoices(dateFrom: Date, dateTo: Date): Promise<SourceInvoiceRow[]> {
   const [headerRow, ...rows] = await sheetsGet(config.sheets.sourceSheetId, `${config.sheets.sourceSheetTab}!A1:Z`);
@@ -117,6 +120,7 @@ export async function getPendingSourceInvoices(dateFrom: Date, dateTo: Date): Pr
   const orderIdx = headerRow.indexOf(config.sheets.sourceOrderNumberHeader);
   const statusIdx = headerRow.indexOf(config.sheets.sourceStatusHeader);
   const fechaIdx = headerRow.indexOf(config.sheets.sourceFechaHeader);
+  const tipoDocumentoIdx = headerRow.indexOf(config.sheets.sourceTipoDocumentoHeader);
 
   if (uuidIdx === -1 || invoiceUidIdx === -1 || orderIdx === -1 || fechaIdx === -1) {
     throw new Error(
@@ -133,13 +137,15 @@ export async function getPendingSourceInvoices(dateFrom: Date, dateTo: Date): Pr
     const numeroOrden = row[orderIdx];
     const estatus = statusIdx >= 0 ? row[statusIdx] : "success";
     const fecha = row[fechaIdx];
+    const tipoDocumento = tipoDocumentoIdx >= 0 ? row[tipoDocumentoIdx] : undefined;
     if (!uuid || !invoiceUid || !numeroOrden || !fecha) continue;
     if (!String(estatus ?? "").startsWith("success")) continue;
+    if (tipoDocumentoIdx >= 0 && tipoDocumento !== config.sheets.sourceTipoDocumentoFactura) continue;
 
     const fechaDate = new Date(fecha);
     if (fechaDate < dateFrom || fechaDate > dateTo) continue;
 
     result.push({ uuid, invoiceUid, numeroOrden: String(numeroOrden), fecha });
   }
-  return result;
+  return result.sort((a, b) => new Date(a.fecha).getTime() - new Date(b.fecha).getTime());
 }

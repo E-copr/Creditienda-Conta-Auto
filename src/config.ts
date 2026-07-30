@@ -48,6 +48,11 @@ export const config = {
     sourceOrderNumberHeader: process.env.SOURCE_ORDER_NUMBER_HEADER ?? "Shopify Order ID",
     sourceStatusHeader: process.env.SOURCE_STATUS_HEADER ?? "Estado",
     sourceFechaHeader: process.env.SOURCE_FECHA_HEADER ?? "Fecha",
+    // El sheet fuente ahora tambien registra Complementos de Pago y filas de
+    // depuracion en la misma pestana - se filtra por este campo para
+    // quedarnos solo con facturas normales (Fase 1).
+    sourceTipoDocumentoHeader: process.env.SOURCE_TIPO_DOCUMENTO_HEADER ?? "Tipo de documento",
+    sourceTipoDocumentoFactura: process.env.SOURCE_TIPO_DOCUMENTO_FACTURA ?? "Factura",
   },
   slack: {
     webhookUrl: process.env.SLACK_WEBHOOK_URL ?? "",

@@ -17,7 +17,7 @@ export const TEXT = {
   totpSubmitButton: "Ingresar",
   proveedoresCard: "Proveedores",
   sidebarCargaDeFacturas: "Carga de facturas",
-  archivoAuxiliarRadio: "Archivo auxiliar",
+  archivoAuxiliarRadio: "Archivo auxiliar (.csv)",
   enviarFacturasButton: "Enviar facturas",
   reporteErroresButton: "Reporte de archivos con error",
 };
