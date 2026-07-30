@@ -164,33 +164,48 @@ export async function uploadFacturasConCsv(
   await page.waitForSelector("text=Envío", { timeout: 60_000 }).catch(() => {
     // Si no aparece texto de envio parcial, puede ser exito total; seguimos.
   });
+  await page.waitForTimeout(1500);
+
+  // Se guarda SIEMPRE una captura del resultado final, exista o no un
+  // patron de texto reconocido - es la evidencia visual de que paso
+  // realmente, para no depender ciegamente del parseo de texto.
+  await page.screenshot({ path: `${downloadDir}/resultado-final.png` }).catch(() => {});
+
+  const resultadoTexto = await page.innerText("body").catch(() => "");
+  console.log(`[simco-upload] texto del resultado: ${resultadoTexto.slice(0, 800)}`);
 
   const reporteButton = page.getByRole("button", { name: TEXT.reporteErroresButton });
   const hasErrorReport = await reporteButton.isVisible().catch(() => false);
 
   let reporteErroresPath: string | undefined;
   if (hasErrorReport) {
-    const [download] = await Promise.all([
-      page.waitForEvent("download"),
-      reporteButton.click(),
-    ]);
+    const [download] = await Promise.all([page.waitForEvent("download"), reporteButton.click()]);
     reporteErroresPath = `${downloadDir}/${download.suggestedFilename()}`;
     await download.saveAs(reporteErroresPath);
   }
 
-  // TODO: una vez confirmados los textos exactos del modal de resultado en
-  // produccion, reemplazar este parseo por lectura directa del DOM
-  // (numero de exitosas / con error) en vez de inferirlo del reporte.
   const totalEnviadas = files.length;
-  const conError = reporteErroresPath ? await countErrorRows(reporteErroresPath) : 0;
-  const exitosas = totalEnviadas - conError;
+
+  // Se busca el patron real que muestra SIMCO: "N de M facturas se enviaron
+  // con exito". Si no se encuentra ESTE texto explicito, NO se asume exito
+  // -> se marca todo como con error/sin confirmar, para no arriesgar un
+  // falso "SUBIDA_OK" en la bitacora (mas seguro para un sistema financiero
+  // fallar-cerrado que fallar-abierto).
+  const matchExito = resultadoTexto.match(/(\d+)\s*de\s*(\d+)\s*facturas?\s*se\s*enviaron\s*con\s*[ée]xito/i);
+
+  let exitosas: number;
+  let conError: number;
+  if (matchExito) {
+    exitosas = Number(matchExito[1]);
+    conError = Number(matchExito[2]) - exitosas;
+  } else {
+    console.warn(
+      "[simco-upload] No se encontro el texto de confirmacion de exito en la pantalla. " +
+        "Se marca todo el lote como NO confirmado (revisar tmp/.../resultado-final.png).",
+    );
+    exitosas = 0;
+    conError = totalEnviadas;
+  }
 
   return { totalEnviadas, exitosas, conError, reporteErroresPath };
-}
-
-async function countErrorRows(csvPath: string): Promise<number> {
-  const fs = await import("node:fs/promises");
-  const content = await fs.readFile(csvPath, "utf-8");
-  const lines = content.trim().split("\n");
-  return Math.max(0, lines.length - 1); // resta encabezado
 }
