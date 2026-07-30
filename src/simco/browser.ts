@@ -192,12 +192,15 @@ export async function uploadFacturasConCsv(
 
   const totalEnviadas = files.length;
 
-  // Se busca el patron real que muestra SIMCO: "N de M facturas se enviaron
-  // con exito". Si no se encuentra ESTE texto explicito, NO se asume exito
-  // -> se marca todo como con error/sin confirmar, para no arriesgar un
-  // falso "SUBIDA_OK" en la bitacora (mas seguro para un sistema financiero
-  // fallar-cerrado que fallar-abierto).
-  const matchExito = resultadoTexto.match(/(\d+)\s*de\s*(\d+)\s*facturas?\s*se\s*enviaron\s*con\s*[ée]xito/i);
+  // Se busca el patron real que muestra SIMCO: "N de M factura(s) se
+  // envio/enviaron con exito" (singular o plural segun M). Si no se
+  // encuentra ESTE texto explicito, NO se asume exito -> se marca todo
+  // como con error/sin confirmar, para no arriesgar un falso "SUBIDA_OK"
+  // en la bitacora (mas seguro para un sistema financiero fallar-cerrado
+  // que fallar-abierto).
+  const matchExito = resultadoTexto.match(
+    /(\d+)\s*de\s*(\d+)\s*facturas?\s*se\s*envi(?:[oó]|aron)\s*con\s*[ée]xito/i,
+  );
 
   let exitosas: number;
   let conError: number;
