@@ -143,16 +143,17 @@ export async function uploadFacturasConCsv(
   const allFilePaths = files.flatMap((f) => [f.pdfPath, f.xmlPath]);
 
   // Selectores grabados con npm run debug:simco-inspect (Playwright
-  // Inspector) contra la pantalla real de "Carga de facturas" - no son
-  // suposiciones, son la interaccion real grabada.
+  // Inspector) contra la pantalla real de "Carga de facturas". El input
+  // real puede estar mas anidado de lo que grabo el Inspector, asi que se
+  // busca el <input type="file"> descendiente en vez del hijo directo.
   await page.locator(".No-Files-Preview").click();
-  await page.locator(".Dropzone > div").setInputFiles(allFilePaths);
+  await page.locator(".Dropzone input[type='file']").setInputFiles(allFilePaths);
 
   // Radio "Archivo auxiliar (.csv)" es el segundo radio de la pantalla (indice 1).
   await page.getByRole("radio").nth(1).check();
 
   await page.getByText("Carga o arrastra el archivo .").click();
-  await page.locator(".mc-dropzone-three > div").setInputFiles(csvPath);
+  await page.locator(".mc-dropzone-three input[type='file']").setInputFiles(csvPath);
 
   const enviarButton = page.getByRole("button", { name: TEXT.enviarFacturasButton });
   await enviarButton.waitFor({ state: "visible" });
