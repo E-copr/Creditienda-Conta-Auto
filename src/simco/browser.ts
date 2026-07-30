@@ -26,6 +26,10 @@ export interface SimcoUploadResult {
   exitosas: number;
   conError: number;
   reporteErroresPath?: string;
+  // true solo si se encontro el texto real de confirmacion de SIMCO en
+  // pantalla. Si es false, el resultado por factura individual tampoco es
+  // confiable (ver uploadFacturas.ts) - no asumir SUBIDA_OK para ninguna.
+  confirmado: boolean;
 }
 
 function launchOptions() {
@@ -216,5 +220,5 @@ export async function uploadFacturasConCsv(
     conError = totalEnviadas;
   }
 
-  return { totalEnviadas, exitosas, conError, reporteErroresPath };
+  return { totalEnviadas, exitosas, conError, reporteErroresPath, confirmado: matchExito !== null };
 }

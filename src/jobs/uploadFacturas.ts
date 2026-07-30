@@ -96,8 +96,16 @@ async function main() {
     }
   }
 
+  // Si no se pudo confirmar el resultado agregado en pantalla (ver
+  // browser.ts), tampoco se puede confiar en el registro por factura
+  // individual -> se marca TODO el lote como error/sin confirmar, en vez
+  // de asumir SUBIDA_OK para las que no aparecen en el reporte de errores
+  // (ese fue el bug real: sin confirmacion, faltaba el reporte y todo se
+  // marcaba exitoso por default).
   const bitacoraRows: BitacoraRow[] = listas.map((l) => {
-    const error = erroresPorUuid.get(l.invoice.uuid);
+    const error = resultado.confirmado
+      ? erroresPorUuid.get(l.invoice.uuid)
+      : "Resultado no confirmado por SIMCO en pantalla - revisar manualmente (ver captura resultado-final.png de esta corrida)";
     return {
       uuid: l.invoice.uuid,
       tipoDocumento: "factura",
