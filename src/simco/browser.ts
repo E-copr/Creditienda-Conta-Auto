@@ -159,11 +159,17 @@ export async function uploadFacturasConCsv(
   await enviarButton.waitFor({ state: "visible" });
   await enviarButton.click();
 
-  // Espera a que cierre el modal de progreso "Enviando facturas..." y
-  // aparezca el resultado final.
-  await page.waitForSelector("text=Envío", { timeout: 60_000 }).catch(() => {
-    // Si no aparece texto de envio parcial, puede ser exito total; seguimos.
-  });
+  // Aparece un modal de PROGRESO ("Enviando facturas... / X de Y factura
+  // enviada. / Aceptar") que NO es el resultado final - hay que darle
+  // click a su "Aceptar" para que se cierre y aparezca el resultado real.
+  const aceptarProgreso = page.getByRole("button", { name: "Aceptar" });
+  await aceptarProgreso.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {});
+  await page.screenshot({ path: `${downloadDir}/modal-progreso.png` }).catch(() => {});
+  if (await aceptarProgreso.isVisible().catch(() => false)) {
+    await aceptarProgreso.click();
+  }
+
+  // Ahora si esperar el resultado final (exito o envio parcial con errores).
   await page.waitForTimeout(1500);
 
   // Se guarda SIEMPRE una captura del resultado final, exista o no un
