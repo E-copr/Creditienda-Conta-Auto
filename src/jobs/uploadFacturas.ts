@@ -13,6 +13,7 @@ import {
 } from "../tracking/sheetLog.js";
 import { writeAuxiliarCsv } from "../util/csv.js";
 import { parseSimcoErrorReport } from "../util/parseErrorReport.js";
+import { formatFechaMexico } from "../util/date.js";
 import { notifySlack } from "../notify/slack.js";
 
 assertRequiredEnv([
@@ -114,7 +115,7 @@ async function main() {
       fechaTimbrado: l.invoice.fecha,
       estatus: error ? "ERROR" : "SUBIDA_OK",
       detalleError: error,
-      fechaSubida: new Date().toISOString(),
+      fechaSubida: formatFechaMexico(new Date()),
     };
   });
 
