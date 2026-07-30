@@ -97,16 +97,38 @@ async function main() {
     }
   }
 
-  // Si no se pudo confirmar el resultado agregado en pantalla (ver
-  // browser.ts), tampoco se puede confiar en el registro por factura
-  // individual -> se marca TODO el lote como error/sin confirmar, en vez
-  // de asumir SUBIDA_OK para las que no aparecen en el reporte de errores
-  // (ese fue el bug real: sin confirmacion, faltaba el reporte y todo se
-  // marcaba exitoso por default).
-  const bitacoraRows: BitacoraRow[] = listas.map((l) => {
-    const error = resultado.confirmado
-      ? erroresPorUuid.get(l.invoice.uuid)
-      : "Resultado no confirmado por SIMCO en pantalla - revisar manualmente (ver captura resultado-final.png de esta corrida)";
+  const MENSAJE_NO_CONFIRMADO =
+    "Resultado no confirmado por SIMCO en pantalla - revisar manualmente (ver captura resultado-final.png de esta corrida)";
+  const MENSAJE_ERROR_SIN_DETALLE =
+    "SIMCO reporto error en el lote pero no se pudo identificar el detalle por factura - revisar manualmente";
+
+  // Como se sabe el conteo agregado real (exitosas/conError, confirmado
+  // contra el texto de SIMCO), los casos sin ambiguedad NO dependen del
+  // reporte de errores por UUID (que nunca se ha validado contra un caso
+  // real): si todo el lote fue exitoso o todo fallo, ya se sabe el
+  // resultado de cada factura sin necesidad de ese reporte. Solo en un
+  // resultado PARCIAL (algunas si, algunas no, con mas de 1 factura) hace
+  // falta el detalle por UUID - y si ese detalle no cuadra, se falla
+  // cerrado (todo sin confirmar) en vez de arriesgar una atribucion
+  // incorrecta.
+  let bitacoraRows: BitacoraRow[];
+  if (!resultado.confirmado) {
+    bitacoraRows = listas.map((l) => bitacoraRow(l, MENSAJE_NO_CONFIRMADO));
+  } else if (resultado.conError === 0) {
+    bitacoraRows = listas.map((l) => bitacoraRow(l, undefined));
+  } else if (resultado.exitosas === 0) {
+    bitacoraRows = listas.map((l) => bitacoraRow(l, erroresPorUuid.get(l.invoice.uuid) ?? MENSAJE_ERROR_SIN_DETALLE));
+  } else if (erroresPorUuid.size === resultado.conError) {
+    bitacoraRows = listas.map((l) => bitacoraRow(l, erroresPorUuid.get(l.invoice.uuid)));
+  } else {
+    console.warn(
+      `[uploadFacturas] Resultado parcial (${resultado.exitosas}/${resultado.totalEnviadas}) pero el reporte de errores ` +
+        `solo identifico ${erroresPorUuid.size} de ${resultado.conError} - no se puede atribuir con certeza, se marca todo sin confirmar.`,
+    );
+    bitacoraRows = listas.map((l) => bitacoraRow(l, MENSAJE_NO_CONFIRMADO));
+  }
+
+  function bitacoraRow(l: (typeof listas)[number], error: string | undefined): BitacoraRow {
     return {
       uuid: l.invoice.uuid,
       tipoDocumento: "factura",
@@ -117,7 +139,7 @@ async function main() {
       detalleError: error,
       fechaSubida: formatFechaMexico(new Date()),
     };
-  });
+  }
 
   await appendBitacoraRows(bitacoraRows);
 
