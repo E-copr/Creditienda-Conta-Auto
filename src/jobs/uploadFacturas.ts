@@ -87,13 +87,13 @@ async function main() {
   );
 
   const detalleErrores: string[] = [];
-  const erroresPorUuid = new Map<string, string>();
+  const erroresPorInvoiceUid = new Map<string, string>();
   if (resultado.reporteErroresPath) {
     const errores = await parseSimcoErrorReport(resultado.reporteErroresPath);
     for (const err of errores) {
       const mensaje = err.codigoError ? describeSimcoError(err.codigoError) : err.mensaje;
-      if (err.uuid) erroresPorUuid.set(err.uuid, mensaje);
-      detalleErrores.push(`${err.uuid || "(uuid no identificado)"}: ${mensaje}`);
+      if (err.invoiceUid) erroresPorInvoiceUid.set(err.invoiceUid, mensaje);
+      detalleErrores.push(`${err.invoiceUid || "(invoice uid no identificado)"}: ${mensaje}`);
     }
   }
 
@@ -104,26 +104,27 @@ async function main() {
 
   // Como se sabe el conteo agregado real (exitosas/conError, confirmado
   // contra el texto de SIMCO), los casos sin ambiguedad NO dependen del
-  // reporte de errores por UUID (que nunca se ha validado contra un caso
-  // real): si todo el lote fue exitoso o todo fallo, ya se sabe el
-  // resultado de cada factura sin necesidad de ese reporte. Solo en un
-  // resultado PARCIAL (algunas si, algunas no, con mas de 1 factura) hace
-  // falta el detalle por UUID - y si ese detalle no cuadra, se falla
-  // cerrado (todo sin confirmar) en vez de arriesgar una atribucion
-  // incorrecta.
+  // reporte de errores por Invoice UID: si todo el lote fue exitoso o todo
+  // fallo, ya se sabe el resultado de cada factura sin necesidad de ese
+  // reporte. Solo en un resultado PARCIAL (algunas si, algunas no, con mas
+  // de 1 factura) hace falta el detalle por Invoice UID - y si ese detalle
+  // no cuadra, se falla cerrado (todo sin confirmar) en vez de arriesgar
+  // una atribucion incorrecta.
   let bitacoraRows: BitacoraRow[];
   if (!resultado.confirmado) {
     bitacoraRows = listas.map((l) => bitacoraRow(l, MENSAJE_NO_CONFIRMADO));
   } else if (resultado.conError === 0) {
     bitacoraRows = listas.map((l) => bitacoraRow(l, undefined));
   } else if (resultado.exitosas === 0) {
-    bitacoraRows = listas.map((l) => bitacoraRow(l, erroresPorUuid.get(l.invoice.uuid) ?? MENSAJE_ERROR_SIN_DETALLE));
-  } else if (erroresPorUuid.size === resultado.conError) {
-    bitacoraRows = listas.map((l) => bitacoraRow(l, erroresPorUuid.get(l.invoice.uuid)));
+    bitacoraRows = listas.map((l) =>
+      bitacoraRow(l, erroresPorInvoiceUid.get(l.invoice.invoiceUid) ?? MENSAJE_ERROR_SIN_DETALLE),
+    );
+  } else if (erroresPorInvoiceUid.size === resultado.conError) {
+    bitacoraRows = listas.map((l) => bitacoraRow(l, erroresPorInvoiceUid.get(l.invoice.invoiceUid)));
   } else {
     console.warn(
       `[uploadFacturas] Resultado parcial (${resultado.exitosas}/${resultado.totalEnviadas}) pero el reporte de errores ` +
-        `solo identifico ${erroresPorUuid.size} de ${resultado.conError} - no se puede atribuir con certeza, se marca todo sin confirmar.`,
+        `solo identifico ${erroresPorInvoiceUid.size} de ${resultado.conError} - no se puede atribuir con certeza, se marca todo sin confirmar.`,
     );
     bitacoraRows = listas.map((l) => bitacoraRow(l, MENSAJE_NO_CONFIRMADO));
   }
