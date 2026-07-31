@@ -64,5 +64,12 @@ export const config = {
     // para validar la subida real a SIMCO con una sola factura antes de
     // soltarlo con un lote completo). 0 = sin limite.
     maxInvoicesPerRun: Number(process.env.MAX_INVOICES_PER_RUN ?? "0"),
+    // Lista opcional de Invoice UID separados por coma para restringir la
+    // corrida a facturas especificas (ej. para probar un caso puntual sin
+    // depender de cual sea "la mas vieja pendiente"). Vacio = sin filtro.
+    onlyInvoiceUids: (process.env.ONLY_INVOICE_UIDS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 };
