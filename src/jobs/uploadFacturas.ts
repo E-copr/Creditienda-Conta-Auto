@@ -15,7 +15,7 @@ import { writeAuxiliarCsv } from "../util/csv.js";
 import { extractFolio } from "../util/cfdi.js";
 import { parseSimcoErrorReport } from "../util/parseErrorReport.js";
 import { formatFechaMexico } from "../util/date.js";
-import { notifySlack } from "../notify/slack.js";
+import { notifyAll } from "../notify/index.js";
 
 assertRequiredEnv([
   "FACTURACOM_API_KEY",
@@ -63,7 +63,7 @@ async function main() {
 
   if (pendientes.length === 0) {
     console.log("No hay facturas nuevas por procesar.");
-    await notifySlack({ totalProcesadas: 0, exitosas: 0, conError: 0, sinNumeroOrden: 0, detalleErrores: [] });
+    await notifyAll({ totalProcesadas: 0, exitosas: 0, conError: 0, sinNumeroOrden: 0, detalleErrores: [] });
     return;
   }
 
@@ -152,7 +152,7 @@ async function main() {
 
   await appendBitacoraRows(bitacoraRows);
 
-  await notifySlack({
+  await notifyAll({
     totalProcesadas: pendientes.length,
     exitosas: resultado.exitosas,
     conError: resultado.conError,

@@ -1,12 +1,7 @@
 import { config } from "../config.js";
+import type { RunSummary } from "./types.js";
 
-export interface RunSummary {
-  totalProcesadas: number;
-  exitosas: number;
-  conError: number;
-  sinNumeroOrden: number;
-  detalleErrores: string[];
-}
+export type { RunSummary } from "./types.js";
 
 export async function notifySlack(summary: RunSummary): Promise<void> {
   if (!config.slack.webhookUrl) return; // notificaciones opcionales

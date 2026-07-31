@@ -57,6 +57,14 @@ export const config = {
   slack: {
     webhookUrl: process.env.SLACK_WEBHOOK_URL ?? "",
   },
+  notify: {
+    // Cuenta de Gmail que envia el correo (requiere una "contrasena de
+    // aplicacion", no la contrasena normal). Vacio = correo desactivado.
+    emailUser: process.env.EMAIL_SMTP_USER ?? "",
+    emailAppPassword: process.env.EMAIL_SMTP_APP_PASSWORD ?? "",
+    emailTo: process.env.EMAIL_TO ?? "ecorps.usa@gmail.com",
+    macNotifications: (process.env.MAC_NOTIFICATIONS ?? "true") !== "false",
+  },
   job: {
     defaultLookbackDays: Number(process.env.DEFAULT_LOOKBACK_DAYS ?? "3"),
     downloadDir: process.env.DOWNLOAD_DIR ?? "./tmp/facturas",
