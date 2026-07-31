@@ -12,6 +12,7 @@ import {
   type SourceInvoiceRow,
 } from "../tracking/sheetLog.js";
 import { writeAuxiliarCsv } from "../util/csv.js";
+import { extractFolio } from "../util/cfdi.js";
 import { parseSimcoErrorReport } from "../util/parseErrorReport.js";
 import { formatFechaMexico } from "../util/date.js";
 import { notifySlack } from "../notify/slack.js";
@@ -69,7 +70,7 @@ async function main() {
   const downloadDir = path.resolve(config.job.downloadDir, `run-${Date.now()}`);
   await mkdir(downloadDir, { recursive: true });
 
-  const listas: { invoice: SourceInvoiceRow; files: FacturaFilePair }[] = [];
+  const listas: { invoice: SourceInvoiceRow; files: FacturaFilePair; folio: string }[] = [];
 
   for (const inv of pendientes) {
     const pdfBuffer = await downloadPdf(inv.invoiceUid);
@@ -80,7 +81,8 @@ async function main() {
     await writeFile(pdfPath, pdfBuffer);
     await writeFile(xmlPath, xmlBuffer);
 
-    listas.push({ invoice: inv, files: { pdfPath, xmlPath } });
+    const folio = extractFolio(xmlBuffer.toString("utf-8"));
+    listas.push({ invoice: inv, files: { pdfPath, xmlPath }, folio });
   }
 
   const csvPath = await writeAuxiliarCsv(
@@ -140,7 +142,7 @@ async function main() {
       uuid: l.invoice.uuid,
       tipoDocumento: "factura",
       numeroOrden: l.invoice.numeroOrden,
-      nombreDocumento: l.invoice.numeroOrden,
+      nombreDocumento: l.folio || l.invoice.numeroOrden,
       fechaTimbrado: l.invoice.fecha,
       estatus: error ? "ERROR" : "SUBIDA_OK",
       detalleError: error,
