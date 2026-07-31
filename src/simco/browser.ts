@@ -196,21 +196,32 @@ export async function uploadFacturasConCsv(
 
   const totalEnviadas = files.length;
 
-  // Se busca el patron real que muestra SIMCO: "N de M factura(s) se
-  // envio/enviaron con exito" (singular o plural segun M). Si no se
-  // encuentra ESTE texto explicito, NO se asume exito -> se marca todo
-  // como con error/sin confirmar, para no arriesgar un falso "SUBIDA_OK"
-  // en la bitacora (mas seguro para un sistema financiero fallar-cerrado
-  // que fallar-abierto).
-  const matchExito = resultadoTexto.match(
+  // SIMCO muestra dos textos de resultado distintos, confirmados contra
+  // pantalla real:
+  //   - Envio PARCIAL ("Envio parcial completado"): "N de M factura(s) se
+  //     envio/enviaron con exito".
+  //   - Envio TOTALMENTE exitoso ("Envio exitoso", sin mencionar errores):
+  //     "N factura(s) se envio/enviaron correctamente" (sin el "de M").
+  // Si no se encuentra NINGUNO de estos dos textos explicitos, NO se asume
+  // exito -> se marca todo como con error/sin confirmar, para no arriesgar
+  // un falso "SUBIDA_OK" en la bitacora (mas seguro para un sistema
+  // financiero fallar-cerrado que fallar-abierto).
+  const matchParcial = resultadoTexto.match(
     /(\d+)\s*de\s*(\d+)\s*facturas?\s*se\s*envi(?:[oó]|aron)\s*con\s*[ée]xito/i,
   );
+  const matchExitoTotal = resultadoTexto.match(/(\d+)\s*facturas?\s*se\s*envi(?:[oó]|aron)\s*correctamente/i);
 
   let exitosas: number;
   let conError: number;
-  if (matchExito) {
-    exitosas = Number(matchExito[1]);
-    conError = Number(matchExito[2]) - exitosas;
+  let confirmado: boolean;
+  if (matchParcial) {
+    exitosas = Number(matchParcial[1]);
+    conError = Number(matchParcial[2]) - exitosas;
+    confirmado = true;
+  } else if (matchExitoTotal && Number(matchExitoTotal[1]) === totalEnviadas) {
+    exitosas = totalEnviadas;
+    conError = 0;
+    confirmado = true;
   } else {
     console.warn(
       "[simco-upload] No se encontro el texto de confirmacion de exito en la pantalla. " +
@@ -218,7 +229,8 @@ export async function uploadFacturasConCsv(
     );
     exitosas = 0;
     conError = totalEnviadas;
+    confirmado = false;
   }
 
-  return { totalEnviadas, exitosas, conError, reporteErroresPath, confirmado: matchExito !== null };
+  return { totalEnviadas, exitosas, conError, reporteErroresPath, confirmado };
 }
