@@ -30,10 +30,15 @@ export interface BitacoraRow {
 
 const SHEETS_API_BASE = "https://sheets.googleapis.com/v4/spreadsheets";
 
+const SHEETS_TIMEOUT_MS = 30_000;
+
 async function sheetsGet(spreadsheetId: string, range: string): Promise<string[][]> {
   const token = await getAccessToken();
   const url = `${SHEETS_API_BASE}/${spreadsheetId}/values/${encodeURIComponent(range)}`;
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  const res = await fetch(url, {
+    headers: { Authorization: `Bearer ${token}` },
+    signal: AbortSignal.timeout(SHEETS_TIMEOUT_MS),
+  });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
     throw new Error(`Google Sheets GET ${range} -> ${res.status}: ${body}`);
@@ -49,6 +54,7 @@ async function sheetsAppend(spreadsheetId: string, range: string, values: unknow
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify({ values }),
+    signal: AbortSignal.timeout(SHEETS_TIMEOUT_MS),
   });
   if (!res.ok) {
     const body = await res.text().catch(() => "");
