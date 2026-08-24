@@ -54,6 +54,12 @@ async function main() {
     console.log(`Filtrando por ONLY_INVOICE_UIDS: ${pendientes.length} de las candidatas coinciden.`);
   }
 
+  if (config.job.onlyOrderNumbers.length > 0) {
+    const filtro = new Set(config.job.onlyOrderNumbers);
+    pendientes = pendientes.filter((inv) => filtro.has(inv.numeroOrden));
+    console.log(`Filtrando por ONLY_ORDER_NUMBERS: ${pendientes.length} de las candidatas coinciden.`);
+  }
+
   if (config.job.maxInvoicesPerRun > 0 && pendientes.length > config.job.maxInvoicesPerRun) {
     console.log(
       `Limitando esta corrida a ${config.job.maxInvoicesPerRun} de ${pendientes.length} facturas pendientes (MAX_INVOICES_PER_RUN).`,

@@ -79,5 +79,11 @@ export const config = {
       .split(",")
       .map((s) => s.trim())
       .filter(Boolean),
+    // Igual que ONLY_INVOICE_UIDS pero por numero de orden (Shopify Order
+    // ID) - util cuando se conoce el pedido pero no su Invoice UID.
+    onlyOrderNumbers: (process.env.ONLY_ORDER_NUMBERS ?? "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 };
